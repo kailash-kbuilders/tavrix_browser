@@ -172,6 +172,35 @@ jobs:
               print("labelled the app as Tavrix Browser")
           PY
 
+      # permission_handler_android 14.x is published with compileSdk 37, which
+      # the Flutter 3.47 template (compileSdk = flutter.compileSdkVersion -> 36)
+      # does not satisfy. Pin the app to 37 so the AAR metadata check passes.
+      - name: Set compileSdk for newer plugin requirements
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          for name in ("android/app/build.gradle", "android/app/build.gradle.kts"):
+              path = pathlib.Path(name)
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              if "compileSdk = 37" in text or "compileSdk 37" in text:
+                  print("compileSdk already 37 in", name)
+                  continue
+              text = re.sub(
+                  r'compileSdk[ \t]*=[ \t]*flutter\.compileSdkVersion',
+                  'compileSdk = 37',
+                  text,
+              )
+              text = re.sub(
+                  r'compileSdk[ \t]+flutter\.compileSdkVersion',
+                  'compileSdk 37',
+                  text,
+              )
+              path.write_text(text)
+              print("compileSdk set in", name)
+          PY
+
       - name: Show Android SDK configuration
         run: |
           grep -rnE "compileSdk|targetSdk|minSdk|ndkVersion|desugar" android/app/build.gradle* || true
