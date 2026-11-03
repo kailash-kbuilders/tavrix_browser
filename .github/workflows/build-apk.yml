@@ -188,6 +188,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # flutter_inappwebview_android 1.1.3 still asks for
+      # getDefaultProguardFile('proguard-android.txt'), which current AGP
+      # refuses ("no longer supported since it includes -dontoptimize").
+      # Point it at the optimised default file in the pub cache copy.
+      - name: Patch plugin Gradle for current AGP
+        run: |
+          CACHE="${PUB_CACHE:-$HOME/.pub-cache}"
+          FOUND=0
+          while IFS= read -r file; do
+            sed -i "s/proguard-android\.txt/proguard-android-optimize.txt/g" "$file"
+            echo "patched $file"
+            FOUND=1
+          done < <(find "$CACHE" -path "*flutter_inappwebview_android*/android/build.gradle" 2>/dev/null)
+          if [ "$FOUND" = "0" ]; then
+            echo "flutter_inappwebview_android build.gradle not found - nothing to patch"
+          fi
+
       - name: Analyze
         run: flutter analyze --no-fatal-infos || true
 
