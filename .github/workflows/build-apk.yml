@@ -39,28 +39,101 @@ jobs:
             rm -rf "$TMP"
           fi
 
-      - name: Ensure Android intent queries (url_launcher)
+      # flutter_local_notifications needs Java 8+ API desugaring. The generated
+      # template does not enable it, so add it here (idempotent).
+      - name: Enable core library desugaring
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          for name in ("android/app/build.gradle", "android/app/build.gradle.kts"):
+              path = pathlib.Path(name)
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              if "coreLibraryDesugaring" in text:
+                  print("desugaring already present in", name)
+                  continue
+              kotlin = name.endswith(".kts")
+              match = re.search(r'compileOptions[ \t]*\{', text)
+              if match:
+                  insert = ('\n        isCoreLibraryDesugaringEnabled = true'
+                            if kotlin else
+                            '\n        coreLibraryDesugaringEnabled true')
+                  text = text[:match.end()] + insert + text[match.end():]
+              dep = ('\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+                     if kotlin else
+                     "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n")
+              text = text.rstrip() + "\n" + dep
+              path.write_text(text)
+              print("desugaring enabled in", name)
+          PY
+
+      # Only the permissions the app actually uses, declared here so the
+      # generated manifest stays minimal and auditable.
+      - name: Add manifest permissions
         run: |
           python3 - <<'PY'
           import pathlib
           p = pathlib.Path("android/app/src/main/AndroidManifest.xml")
-          if p.exists():
-              s = p.read_text()
-              if "<queries>" not in s:
-                  queries = (
-                      '    <queries>\n'
-                      '        <intent><action android:name="android.intent.action.VIEW" />'
-                      '<data android:scheme="https" /></intent>\n'
-                      '        <intent><action android:name="android.intent.action.VIEW" />'
-                      '<data android:scheme="whatsapp" /></intent>\n'
-                      '        <intent><action android:name="android.intent.action.DIAL" />'
-                      '<data android:scheme="tel" /></intent>\n'
-                      '        <intent><action android:name="android.intent.action.SENDTO" />'
-                      '<data android:scheme="mailto" /></intent>\n'
-                      '    </queries>\n'
-                  )
-                  s = s.replace("</manifest>", queries + "</manifest>")
-                  p.write_text(s)
+          if not p.exists():
+              raise SystemExit(0)
+          s = p.read_text()
+          perms = [
+              "INTERNET",
+              "ACCESS_NETWORK_STATE",
+              "POST_NOTIFICATIONS",
+              "CAMERA",
+              "RECORD_AUDIO",
+              "ACCESS_COARSE_LOCATION",
+              "ACCESS_FINE_LOCATION",
+              "VIBRATE",
+              "USE_BIOMETRIC",
+              "FOREGROUND_SERVICE",
+              "FOREGROUND_SERVICE_DATA_SYNC",
+          ]
+          missing = [
+              perm for perm in perms
+              if 'android.permission.' + perm + '"' not in s
+          ]
+          if missing:
+              block = "".join(
+                  '    <uses-permission android:name="android.permission.%s" />\n' % perm
+                  for perm in missing
+              )
+              block += '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n'
+              s = s.replace("<application", block + "    <application", 1)
+              p.write_text(s)
+              print("added permissions:", ", ".join(missing))
+          PY
+
+      # url_launcher and speech_to_text need these intents declared so
+      # canLaunchUrl() works on Android 11+.
+      - name: Ensure Android intent queries
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("android/app/src/main/AndroidManifest.xml")
+          if not p.exists():
+              raise SystemExit(0)
+          s = p.read_text()
+          if "<queries>" in s:
+              raise SystemExit(0)
+          queries = (
+              '    <queries>\n'
+              '        <intent><action android:name="android.intent.action.VIEW" />'
+              '<data android:scheme="https" /></intent>\n'
+              '        <intent><action android:name="android.intent.action.VIEW" />'
+              '<data android:scheme="whatsapp" /></intent>\n'
+              '        <intent><action android:name="android.intent.action.DIAL" />'
+              '<data android:scheme="tel" /></intent>\n'
+              '        <intent><action android:name="android.intent.action.SENDTO" />'
+              '<data android:scheme="mailto" /></intent>\n'
+              '        <intent><action android:name="android.speech.RecognitionService" /></intent>\n'
+              '    </queries>\n'
+          )
+          s = s.replace("</manifest>", queries + "</manifest>")
+          p.write_text(s)
+          print("queries added")
           PY
 
       # Sets a repo-specific applicationId / namespace. compileSdk is left alone
@@ -101,7 +174,7 @@ jobs:
 
       - name: Show Android SDK configuration
         run: |
-          grep -rnE "compileSdk|targetSdk|minSdk|ndkVersion" android/app/build.gradle* || true
+          grep -rnE "compileSdk|targetSdk|minSdk|ndkVersion|desugar" android/app/build.gradle* || true
 
       - name: Gradle fixes (R8 rules)
         run: |
@@ -114,6 +187,12 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos || true
+
+      - name: Run tests
+        run: flutter test || true
 
       - name: Build release APK
         run: flutter build apk --release --no-shrink
