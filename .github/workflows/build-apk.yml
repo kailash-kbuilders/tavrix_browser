@@ -39,6 +39,18 @@ jobs:
             rm -rf "$TMP"
           fi
 
+      # The adaptive launcher icon, legacy icons and the notification glyph
+      # live in assets/android_icons/res so they survive android/ regeneration.
+      - name: Install app icons
+        run: |
+          if [ -d "assets/android_icons/res" ]; then
+            cp -r assets/android_icons/res/. android/app/src/main/res/
+            echo "icons installed:"
+            find android/app/src/main/res -name "ic_launcher*" -o -name "ic_stat_tavrix*" | sort
+          else
+            echo "no icon assets found, keeping Flutter defaults"
+          fi
+
       # flutter_local_notifications needs Java 8+ API desugaring. The generated
       # template does not enable it, so add it here (idempotent).
       - name: Enable core library desugaring

@@ -1,7 +1,7 @@
 name: tavrix_browser
 description: Tavrix Browser - Browse Beyond Limits. A premium mobile browser built with Flutter.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -35,3 +35,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/logo_mark.png

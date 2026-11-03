@@ -40,6 +40,24 @@ true progress, and permissions are requested only when a feature needs them.
 - **Password vault** - Android Keystore backed secure storage, strong password
   generator, per-site logins, form autofill by domain.
 
+## Branding and app icon
+
+The launcher icon is a real Android **adaptive icon**, not a square picture with
+rounded corners baked in: `mipmap-anydpi-v26/ic_launcher.xml` layers a dark
+gradient background under the logo mark, and the launcher applies its own shape
+(circle, squircle, teardrop) on Android 8+. Legacy `ic_launcher.png` /
+`ic_launcher_round.png` are generated for older devices, and
+`drawable-*/ic_stat_tavrix.png` is the white notification glyph.
+
+Source art: `assets/branding/logo_source.jpg`. Regenerate every size with:
+
+```bash
+python3 tools/generate_icons.py     # needs Pillow and numpy
+```
+
+The workflow copies `assets/android_icons/res/` into the generated Android
+project, so the icons survive `android/` being regenerated.
+
 ## Architecture
 
 ```

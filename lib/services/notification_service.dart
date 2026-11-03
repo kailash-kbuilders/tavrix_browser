@@ -123,7 +123,7 @@ class NotificationService {
         indeterminate: indeterminate,
         maxProgress: maxProgress,
         progress: progress,
-        icon: '@mipmap/ic_launcher',
+        icon: 'ic_stat_tavrix',
       ),
     );
   }

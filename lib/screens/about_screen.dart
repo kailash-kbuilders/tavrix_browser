@@ -15,19 +15,17 @@ class AboutScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           Container(
-            height: 84,
-            width: 84,
+            height: 88,
+            width: 88,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
+              color: const Color(0xFF070A12),
               borderRadius: BorderRadius.circular(24),
             ),
-            alignment: Alignment.center,
-            child: Text(
-              'T',
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
+            clipBehavior: Clip.antiAlias,
+            padding: const EdgeInsets.all(10),
+            child: Image.asset(
+              'assets/branding/logo_mark.png',
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(height: 16),
