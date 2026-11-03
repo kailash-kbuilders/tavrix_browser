@@ -171,6 +171,12 @@ class SettingsProvider extends ChangeNotifier {
     await _commit();
   }
 
+  /// Restores every preference to its default value.
+  Future<void> resetAll() async {
+    _settings = AppSettings();
+    await _commit();
+  }
+
   Future<void> addSearchEngine(SearchEngine engine) async {
     _settings.customSearchEngines = [..._settings.customSearchEngines, engine];
     await _commit();

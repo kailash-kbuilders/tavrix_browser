@@ -9,6 +9,7 @@ class TabModel {
     this.isPrivate = false,
     this.isPinned = false,
     this.groupName,
+    this.isDesktopMode = false,
   });
 
   final String id;
@@ -23,7 +24,7 @@ class TabModel {
   bool canGoBack = false;
   bool canGoForward = false;
   bool isSecure = true;
-  bool isDesktopMode = false;
+  bool isDesktopMode;
   String? errorMessage;
 
   /// Set by the WebView widget once the platform view is ready.

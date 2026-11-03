@@ -42,8 +42,8 @@ class _TavrixAppState extends State<TavrixApp> {
       title: TavrixConstants.appName,
       debugShowCheckedModeBanner: false,
       themeMode: settings.themeMode,
-      theme: AppTheme.light(app.accentColor),
-      darkTheme: AppTheme.dark(app.accentColor),
+      theme: AppTheme.light(app.accentColor, animations: app.animations),
+      darkTheme: AppTheme.dark(app.accentColor, animations: app.animations),
       builder: (context, child) {
         final media = MediaQuery.of(context);
         return MediaQuery(

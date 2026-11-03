@@ -104,35 +104,59 @@ class AppSettings {
             customSearchEngines.map((engine) => engine.toJson()).toList(),
       };
 
+  // Parsing helpers: a settings blob written by an older version (or a
+  // corrupted one) must never crash the app on launch.
+  static String _string(dynamic value, String fallback) =>
+      value is String ? value : fallback;
+
+  static bool _bool(dynamic value, bool fallback) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) return value.toLowerCase() == 'true';
+    return fallback;
+  }
+
+  static double _double(dynamic value, double fallback) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  static int _int(dynamic value, int fallback) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        themeMode: json['themeMode'] as String? ?? 'system',
-        accentColor: json['accentColor'] as int? ?? 0xFF3B6FF6,
-        searchEngineId: json['searchEngineId'] as String? ?? 'google',
-        toolbarPosition: json['toolbarPosition'] as String? ?? 'bottom',
-        homepageUrl: json['homepageUrl'] as String? ?? '',
-        fontScale: (json['fontScale'] as num?)?.toDouble() ?? 1.0,
-        haptics: json['haptics'] as bool? ?? true,
-        animations: json['animations'] as bool? ?? true,
-        desktopMode: json['desktopMode'] as bool? ?? false,
+        themeMode: _string(json['themeMode'], 'system'),
+        accentColor: _int(json['accentColor'], 0xFF3B6FF6),
+        searchEngineId: _string(json['searchEngineId'], 'google'),
+        toolbarPosition: _string(json['toolbarPosition'], 'bottom'),
+        homepageUrl: _string(json['homepageUrl'], ''),
+        fontScale: _double(json['fontScale'], 1.0),
+        haptics: _bool(json['haptics'], true),
+        animations: _bool(json['animations'], true),
+        desktopMode: _bool(json['desktopMode'], false),
         swipeAddressBarSwitchesTabs:
-            json['swipeAddressBarSwitchesTabs'] as bool? ?? true,
-        edgeSwipeNavigation: json['edgeSwipeNavigation'] as bool? ?? true,
-        notifyProgress: json['notifyProgress'] as bool? ?? true,
-        notifyComplete: json['notifyComplete'] as bool? ?? true,
-        notifyFailed: json['notifyFailed'] as bool? ?? true,
-        notifyWebsite: json['notifyWebsite'] as bool? ?? true,
-        blockPopups: json['blockPopups'] as bool? ?? true,
-        javaScriptEnabled: json['javaScriptEnabled'] as bool? ?? true,
-        cookiesEnabled: json['cookiesEnabled'] as bool? ?? true,
-        doNotTrack: json['doNotTrack'] as bool? ?? false,
-        automaticPrivateCleanup: json['automaticPrivateCleanup'] as bool? ?? true,
-        automaticTranslation: json['automaticTranslation'] as bool? ?? false,
-        translationLanguage: json['translationLanguage'] as String? ?? 'en',
-        searchSuggestions: json['searchSuggestions'] as bool? ?? true,
-        savedSearchHistory: json['savedSearchHistory'] as bool? ?? true,
-        compactLayout: json['compactLayout'] as bool? ?? false,
-        tabLayout: json['tabLayout'] as String? ?? 'grid',
-        defaultDownloadFolder: json['defaultDownloadFolder'] as String? ?? '',
+            _bool(json['swipeAddressBarSwitchesTabs'], true),
+        edgeSwipeNavigation: _bool(json['edgeSwipeNavigation'], true),
+        notifyProgress: _bool(json['notifyProgress'], true),
+        notifyComplete: _bool(json['notifyComplete'], true),
+        notifyFailed: _bool(json['notifyFailed'], true),
+        notifyWebsite: _bool(json['notifyWebsite'], true),
+        blockPopups: _bool(json['blockPopups'], true),
+        javaScriptEnabled: _bool(json['javaScriptEnabled'], true),
+        cookiesEnabled: _bool(json['cookiesEnabled'], true),
+        doNotTrack: _bool(json['doNotTrack'], false),
+        automaticPrivateCleanup: _bool(json['automaticPrivateCleanup'], true),
+        automaticTranslation: _bool(json['automaticTranslation'], false),
+        translationLanguage: _string(json['translationLanguage'], 'en'),
+        searchSuggestions: _bool(json['searchSuggestions'], true),
+        savedSearchHistory: _bool(json['savedSearchHistory'], true),
+        compactLayout: _bool(json['compactLayout'], false),
+        tabLayout: _string(json['tabLayout'], 'grid'),
+        defaultDownloadFolder: _string(json['defaultDownloadFolder'], ''),
         customSearchEngines: (json['customSearchEngines'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .map(SearchEngine.fromJson)

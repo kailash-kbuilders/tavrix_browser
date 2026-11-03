@@ -193,7 +193,8 @@ class DatabaseService {
 
   Future<List<String>> historyDomains() async {
     final rows = await db.rawQuery(
-        'SELECT DISTINCT domain FROM history WHERE domain IS NOT NULL AND domain != "" ORDER BY domain ASC');
+        "SELECT DISTINCT domain FROM history "
+        "WHERE domain IS NOT NULL AND domain != '' ORDER BY domain ASC");
     return rows.map((row) => row['domain'] as String? ?? '').toList();
   }
 

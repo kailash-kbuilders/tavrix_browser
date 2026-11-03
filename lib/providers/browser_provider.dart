@@ -96,7 +96,12 @@ class BrowserProvider extends ChangeNotifier {
   // ----------------------------------------------------------------- tabs
 
   TabModel openTab({String url = '', bool isPrivate = false, bool switchTo = true}) {
-    final tab = TabModel(id: _uuid.v4(), url: url, isPrivate: isPrivate);
+    final tab = TabModel(
+      id: _uuid.v4(),
+      url: url,
+      isPrivate: isPrivate,
+      isDesktopMode: _settings.settings.desktopMode,
+    );
     _tabs.add(tab);
     if (switchTo) _activeTabId = tab.id;
     _schedulePersist();

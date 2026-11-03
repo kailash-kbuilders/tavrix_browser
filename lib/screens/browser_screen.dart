@@ -71,6 +71,12 @@ class _BrowserScreenState extends State<BrowserScreen>
 
   // --------------------------------------------------------------- helpers
 
+  /// Respects the haptics preference instead of buzzing regardless.
+  void _haptic() {
+    if (!context.read<SettingsProvider>().settings.haptics) return;
+    HapticFeedback.selectionClick();
+  }
+
   void _snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -86,6 +92,7 @@ class _BrowserScreenState extends State<BrowserScreen>
   // ------------------------------------------------------------- navigation
 
   void _submitInput(String text) {
+    _haptic();
     final browser = context.read<BrowserProvider>();
     final settings = context.read<SettingsProvider>();
     final tab = browser.activeTab;
@@ -524,8 +531,18 @@ class _BrowserScreenState extends State<BrowserScreen>
                 },
                 onShare: _sharePage,
                 onToggleBookmark: _toggleBookmark,
-                onSwipeNext: browser.switchToNextTab,
-                onSwipePrevious: browser.switchToPreviousTab,
+                onSwipeNext: settings.settings.swipeAddressBarSwitchesTabs
+                    ? () {
+                        _haptic();
+                        browser.switchToNextTab();
+                      }
+                    : () {},
+                onSwipePrevious: settings.settings.swipeAddressBarSwitchesTabs
+                    ? () {
+                        _haptic();
+                        browser.switchToPreviousTab();
+                      }
+                    : () {},
               ),
               if (_findVisible)
                 FindInPageBar(
@@ -553,6 +570,22 @@ class _BrowserScreenState extends State<BrowserScreen>
                                 tabs: browser.tabs,
                                 activeTabId: browser.activeTabId,
                               ),
+                              if (settings.settings.edgeSwipeNavigation) ...[
+                                _EdgeSwipeArea(
+                                  alignment: Alignment.centerLeft,
+                                  onSwipe: () {
+                                    _haptic();
+                                    browser.goBack(tab.id);
+                                  },
+                                ),
+                                _EdgeSwipeArea(
+                                  alignment: Alignment.centerRight,
+                                  onSwipe: () {
+                                    _haptic();
+                                    browser.goForward(tab.id);
+                                  },
+                                ),
+                              ],
                               if ((tab.errorMessage ?? '').isNotEmpty)
                                 _ErrorOverlay(
                                   message: tab.errorMessage!,
@@ -571,6 +604,35 @@ class _BrowserScreenState extends State<BrowserScreen>
         bottomNavigationBar: toolbarTop
             ? null
             : SafeArea(top: false, child: toolbar),
+      ),
+    );
+  }
+}
+
+/// A thin strip on the screen edge that turns a horizontal drag into
+/// back/forward navigation, so the "edge swipe" setting does something real.
+class _EdgeSwipeArea extends StatelessWidget {
+  const _EdgeSwipeArea({required this.alignment, required this.onSwipe});
+
+  final Alignment alignment;
+  final VoidCallback onSwipe;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLeft = alignment == Alignment.centerLeft;
+    return Align(
+      alignment: alignment,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (isLeft && velocity > 250) {
+            onSwipe();
+          } else if (!isLeft && velocity < -250) {
+            onSwipe();
+          }
+        },
+        child: const SizedBox(width: 20, height: double.infinity),
       ),
     );
   }

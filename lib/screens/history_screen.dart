@@ -55,7 +55,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             },
             itemBuilder: (menuContext) => const [
               PopupMenuItem(value: 'hour', child: Text('Clear last hour')),
-              PopupMenuItem(value: 'day', child: Text('Clear today')),
+              PopupMenuItem(value: 'day', child: Text('Clear last 24 hours')),
               PopupMenuItem(value: 'week', child: Text('Clear last 7 days')),
               PopupMenuItem(value: 'all', child: Text('Clear all history')),
             ],

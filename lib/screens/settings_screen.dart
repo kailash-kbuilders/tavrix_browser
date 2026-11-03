@@ -249,9 +249,6 @@ class SettingsScreen extends StatelessWidget {
               app.notifyComplete, settings.setNotifyComplete),
           switchTile('Download failed', 'Shown when a download fails',
               app.notifyFailed, settings.setNotifyFailed),
-          switchTile('Website notifications',
-              'Allow sites you approved to notify you', app.notifyWebsite,
-              settings.setNotifyWebsite),
           const ListTile(
             leading: Icon(Icons.tune_rounded),
             title: Text('Notification channels'),
@@ -264,8 +261,6 @@ class SettingsScreen extends StatelessWidget {
               app.javaScriptEnabled, settings.setJavaScriptEnabled),
           switchTile('Cookies', 'Allow sites to store cookies',
               app.cookiesEnabled, settings.setCookiesEnabled),
-          switchTile('Block pop-ups', 'Stop pages opening new windows',
-              app.blockPopups, settings.setBlockPopups),
           switchTile('Do Not Track', 'Ask sites not to track you',
               app.doNotTrack, settings.setDoNotTrack),
           switchTile('Clear private tabs on exit',
@@ -355,17 +350,8 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.restore_rounded),
             title: const Text('Reset all settings'),
-            onTap: () async {
-              await settings.setThemeMode('system');
-              await settings.setSearchEngine('google');
-              await settings.setToolbarPosition('bottom');
-              await settings.setHomepage('');
-              await settings.setFontScale(1.0);
-              await settings.setJavaScriptEnabled(true);
-              await settings.setCookiesEnabled(true);
-              await settings.setBlockPopups(true);
-              await settings.setDesktopMode(false);
-            },
+            subtitle: const Text('Restores every preference to its default'),
+            onTap: settings.resetAll,
           ),
 
           header('About'),

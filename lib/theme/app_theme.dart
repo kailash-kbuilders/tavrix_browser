@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData light(int accent) => _build(accent, Brightness.light);
-  static ThemeData dark(int accent) => _build(accent, Brightness.dark);
+  static ThemeData light(int accent, {bool animations = true}) =>
+      _build(accent, Brightness.light, animations);
 
-  static ThemeData _build(int accent, Brightness brightness) {
+  static ThemeData dark(int accent, {bool animations = true}) =>
+      _build(accent, Brightness.dark, animations);
+
+  static ThemeData _build(int accent, Brightness brightness, bool animations) {
     final scheme = ColorScheme.fromSeed(
       seedColor: Color(accent),
       brightness: brightness,
@@ -21,6 +24,17 @@ class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: scheme.surface,
+      pageTransitionsTheme: animations
+          ? const PageTransitionsTheme()
+          : const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: _InstantTransitionsBuilder(),
+                TargetPlatform.iOS: _InstantTransitionsBuilder(),
+                TargetPlatform.macOS: _InstantTransitionsBuilder(),
+                TargetPlatform.windows: _InstantTransitionsBuilder(),
+                TargetPlatform.linux: _InstantTransitionsBuilder(),
+              },
+            ),
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
@@ -89,4 +103,20 @@ class AppTheme {
       ),
     );
   }
+}
+
+/// Screen transitions with no animation, used when the user turns animations
+/// off in settings.
+class _InstantTransitionsBuilder extends PageTransitionsBuilder {
+  const _InstantTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      child;
 }

@@ -100,12 +100,6 @@ class PrivacyScreen extends StatelessWidget {
             onChanged: settings.setDoNotTrack,
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.block_rounded),
-            title: const Text('Block pop-ups'),
-            value: settings.settings.blockPopups,
-            onChanged: settings.setBlockPopups,
-          ),
-          SwitchListTile(
             secondary: const Icon(Icons.code_rounded),
             title: const Text('JavaScript'),
             value: settings.settings.javaScriptEnabled,

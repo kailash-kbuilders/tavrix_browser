@@ -57,6 +57,19 @@ class TabWebView extends StatefulWidget {
 
 class _TabWebViewState extends State<TabWebView> {
   InAppWebViewController? _controller;
+  String? _appliedSettingsSignature;
+
+  /// Settings that can be changed while a page is open. Changing them used to
+  /// require closing the tab, so switches like JavaScript or cookies looked
+  /// broken. The signature lets us push new settings to the live WebView.
+  String _signature(InAppWebViewSettings settings) => [
+        settings.javaScriptEnabled,
+        settings.thirdPartyCookiesEnabled,
+        settings.javaScriptCanOpenWindowsAutomatically,
+        settings.geolocationEnabled,
+        settings.userAgent,
+        settings.incognito,
+      ].join('|');
 
   Future<void> _syncNavigation(BrowserProvider browser, String tabId) async {
     final controller = _controller;
@@ -76,9 +89,27 @@ class _TabWebViewState extends State<TabWebView> {
   Widget build(BuildContext context) {
     final tab = widget.tab;
     final browser = context.read<BrowserProvider>();
-    final settings = context.read<SettingsProvider>();
+    // watch, not read: a settings change must rebuild so it can be applied.
+    final settings = context.watch<SettingsProvider>();
     final downloads = context.read<DownloadProvider>();
     final permissions = context.read<PermissionProvider>();
+
+    final desiredSettings = BrowserEngine.settingsFor(
+      appSettings: settings.settings,
+      isPrivate: tab.isPrivate,
+      desktopMode: tab.isDesktopMode,
+    );
+    final signature = _signature(desiredSettings);
+    if (_appliedSettingsSignature == null) {
+      _appliedSettingsSignature = signature;
+    } else if (_appliedSettingsSignature != signature) {
+      _appliedSettingsSignature = signature;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          await _controller?.setSettings(settings: desiredSettings);
+        } catch (_) {}
+      });
+    }
 
     return InAppWebView(
       initialUrlRequest: tab.url.isEmpty
@@ -162,7 +193,25 @@ class _TabWebViewState extends State<TabWebView> {
           'chrome',
         };
         if (internal.contains(scheme)) return NavigationActionPolicy.ALLOW;
-        // mailto:, tel:, whatsapp:, intent: and friends go to the system.
+
+        // Only well known schemes may leave the browser. Anything else -
+        // including intent: URLs, which can start arbitrary app components -
+        // is dropped instead of being launched from a web page.
+        const externalAllowed = {
+          'mailto',
+          'tel',
+          'sms',
+          'smsto',
+          'whatsapp',
+          'geo',
+          'market',
+          'upi',
+          'tg',
+          'maps',
+        };
+        if (!externalAllowed.contains(scheme)) {
+          return NavigationActionPolicy.CANCEL;
+        }
         try {
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);

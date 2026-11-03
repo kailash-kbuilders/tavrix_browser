@@ -178,8 +178,6 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
                 await browser.closeAllTabs();
               } else if (value == 'closePrivate') {
                 await browser.closeAllPrivateTabs();
-              } else if (value == 'clearClosed') {
-                await context.read<BrowserProvider>().refreshRecentlyClosed();
               }
             },
             itemBuilder: (menuContext) => const [

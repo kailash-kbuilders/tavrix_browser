@@ -1,55 +1,66 @@
 # Feature implementation checklist
 
-Status legend:
-- **Done** - implemented and wired to real behaviour in this repository.
-- **Partial** - implemented with a documented engine or platform limit.
-- **Not available** - the Android System WebView does not expose it; the UI does
-  not pretend otherwise.
+Status legend (from the release QA audit, see RELEASE_QA_REPORT.md):
+
+- **Verified** - implementation reviewed *and* covered by an automated test.
+- **Device test needed** - implemented, code-reviewed, but cannot be exercised without a phone/emulator.
+- **Partial** - works, with a documented limit.
+- **Not implemented** - missing.
+- **Engine limit** - the Android System WebView cannot do it; no fake UI is shown.
 
 | # | PRD module | Status | Notes |
 | --- | --- | --- | --- |
-| 1 | Home and speed dial | Done | Add/edit/delete/reorder shortcuts, top sites, recently closed, recent downloads |
-| 2 | Address and search | Done | URL detection, search fallback, security icon, progress, swipe gestures, copy/paste-and-go, share |
-| 3 | Browser engine | Done | Android System WebView via flutter_inappwebview, behind `BrowserEngine` |
-| 4 | Web navigation | Done | Back/forward/reload/stop/home, error overlay with retry |
-| 5 | Tab management | Done | Live tabs, overview grid/list, search, pin, groups, close all, recently closed, session restore |
-| 6 | Gesture management | Partial | Address-bar swipe, swipe-to-close tabs, pinch zoom; pull-to-refresh and edge-swipe back are not wired (see limitations) |
-| 7 | Bookmarks | Done | Folders, favourites, search, JSON export/import, duplicate detection |
-| 8 | History | Done | Day grouping, search, range delete, clear all, private excluded |
-| 9 | Downloads | Done | Streaming with real progress, pause/resume/cancel/retry, open/share, SQLite records |
-| 10 | Notifications | Partial | Progress/complete/failed notifications with channels; notification action buttons (pause/resume) are in-app only |
-| 11 | Private browsing | Done | Incognito WebView sessions, separate list, no history, optional wipe on background |
-| 12 | Password manager | Done | Keystore-backed secure storage, generator, per-site logins, autofill by domain |
-| 13 | Autofill | Partial | Fills username/password forms on the current site on request; general address/phone autofill is not implemented |
-| 14 | Privacy and security | Done | HTTPS status, cookie/storage/history clearing, DNT, JS and cookie switches, pop-up blocking |
-| 15 | Website permissions | Done | Per-host allow/block/ask, separate from the Android permission |
-| 16 | Media playback | Partial | HTML5 audio/video, inline and full-screen, zoom; picture-in-picture and media-session lock-screen controls depend on the page |
-| 17 | Reader mode | Done | Article extraction, font size, light/sepia/dark, share |
-| 18 | Translation | Partial | Opens the page through Google Translate's web translator (a real provider, not a fake in-app switch) |
-| 19 | Find in page | Done | Highlighting, match count, next/previous, no-result state |
-| 20 | Sharing | Done | System share sheet for URL, title, files |
-| 21 | Desktop mode | Done | Per-tab desktop user agent and reload |
-| 22 | PWA support | Not available | Installation prompts are not exposed by the system WebView |
-| 23 | Offline reading | Done | Saves page HTML, lists saved pages, opens them from local files |
-| 24 | Browser customisation | Done | Theme, accent colour, toolbar position, compact layout, tab layout, font scaling |
-| 25 | Settings | Done | All 23 sections present, every switch persists |
-| 26 | Backup and restore | Partial | Bookmarks export/import as JSON, settings export; encrypted password backup is not implemented |
-| 27 | Android system integration | Done | Contextual runtime permissions, intent queries, external intents, notification channels |
-| 28 | Accessibility | Partial | Semantic labels on icon buttons, scalable typography, large touch targets; no dedicated screen-reader audit yet |
-| 29 | Error handling | Done | Offline, DNS, HTTP error, download failure, invalid URL, permission denied states with recovery |
-| 30 | Performance and diagnostics | Partial | Tab WebViews are kept alive and disposed with their widget; no on-device profiling has been run |
+| 1 | Home and speed dial | Device test needed | Add/edit/delete/reorder shortcuts, top sites, recently closed, recent downloads. Shortcut ordering is menu-driven, not drag. |
+| 2 | Address and search | Verified (logic) / Device test needed (UI) | URL detection, https normalisation and search fallback unit-tested; address bar submit covered by a widget test. Swipe-to-switch respects its setting. |
+| 3 | Browser engine | Device test needed | Android System WebView behind `BrowserEngine`; live settings now pushed to open tabs. |
+| 4 | Web navigation | Device test needed | Back/forward/reload/stop/home, error overlay with retry. |
+| 5 | Tab management | Partial | Live tabs, grid/list overview, search, pin, groups, close all, recently closed (capped at 50, tested), session restore. No drag-to-reorder and no duplicate-tab detection. |
+| 6 | Gestures | Partial | Address-bar swipe (setting-gated), edge-swipe back/forward, swipe-to-close tabs, pinch zoom. Pull-to-refresh is **not** implemented. |
+| 7 | Bookmarks | Verified (storage) / Device test needed (UI) | CRUD, folders, favourites, search, duplicate check - real SQLite tests. Export/import is JSON text (paste/share), no file picker. |
+| 8 | History | Verified (storage) / Device test needed (UI) | Day grouping, search, single delete, range delete ("last hour / 24 hours / 7 days / all"), domain list (SQL bug fixed). Private tabs excluded. |
+| 9 | Downloads | Partial | Streaming with real progress, pause (keeps partial file), resume via HTTP Range, cancel, retry, duplicate-safe filenames, open/share; records in SQLite (tested). Interrupted records are restored as paused. No concurrency limit. |
+| 10 | Notifications | Partial | Channels, progress/complete/failure notifications, contextual permission request on the first download. Action buttons (pause/resume) live in the app, not in the notification. |
+| 11 | Private browsing | Device test needed | Incognito WebView sessions, separate tab list, no history writes, wipe on background when enabled. Isolation itself needs a device to confirm. |
+| 12 | Password manager | Partial | Keystore-backed vault, generator, per-site logins, copy/edit/delete. No biometric lock. |
+| 13 | Autofill | Partial | Username/password only, triggered from the menu. No addresses or phone numbers. |
+| 14 | Privacy and security | Verified (settings) / Device test needed (engine) | HTTPS status, cookie clearing, local-storage clearing, history clearing, DNT signal, JavaScript and cookie switches (now live). HTTP cache is cleared by the OS with app data. |
+| 15 | Website permissions | Partial | Per-host allow/block/ask stored in SQLite (tested) and enforced for camera/microphone/location. The first request from a site is granted automatically after the OS grant - no in-app prompt yet. |
+| 16 | Media playback | Device test needed | HTML5 audio/video, inline playback, full screen, zoom. No picture-in-picture or lock-screen media session. |
+| 17 | Reader mode | Device test needed | Heuristic article extraction, font size, light/sepia/dark, share. Canvas-heavy pages yield "no readable article". |
+| 18 | Translation | Partial | Opens the page through Google Translate's web translator - a real provider, not an in-app overlay. |
+| 19 | Find in page | Device test needed | Highlighting via injected JS, match count, next/previous, no-result state. |
+| 20 | Sharing | Device test needed | System share sheet for URL, title and downloaded files. |
+| 21 | Desktop mode | Verified (wiring) / Device test needed | Per-tab desktop user agent with reload, plus a "desktop by default" preference that now actually applies to new tabs. |
+| 22 | PWA support | Engine limit | The system WebView exposes no install prompt. |
+| 23 | Offline reading | Device test needed | Saves page HTML, lists saved pages, opens them from local files. |
+| 24 | Browser customisation | Verified (settings) / Device test needed (visuals) | Theme, accent colour, toolbar position, compact layout, tab layout, font scaling, animations toggle (now wired). |
+| 25 | Settings | Verified | 26 preferences persist (JSON round trip tested). Every switch either works or was removed - `blockPopups` and `notifyWebsite` were removed because the engine cannot honour them. |
+| 26 | Backup and restore | Partial | Bookmarks export/import as JSON, settings export. No encrypted password backup. |
+| 27 | Android system integration | Device test needed | Contextual runtime permissions, intent queries, external-scheme allowlist, notification channels, `roundIcon`. |
+| 28 | Accessibility | Partial | Semantic labels on icon buttons, scalable typography, large touch targets. No screen-reader audit performed. |
+| 29 | Error handling | Device test needed | Offline, DNS, HTTP error, download failure, invalid URL and permission-denied states with recovery actions. |
+| 30 | Performance and diagnostics | Partial | Tabs are kept alive and disposed with their widget; no profiling on real hardware, no crash reporting. |
 
-## Not implemented in this build
+## Not implemented
 
-These are called out rather than faked:
-
-- Print / save as PDF (no print API in the system WebView plugin used here).
-- Chrome extensions.
-- Web push from websites.
-- PWA installation.
-- Biometric app lock (the manifest declares `USE_BIOMETRIC`, but no biometric
-  prompt is wired yet).
-- Notification action buttons that control downloads directly (actions live in
-  the in-app Downloads screen).
+- Print / save as PDF (no print API in this plugin).
+- Chrome extensions, web push from sites, PWA installation (engine limits).
+- Notification action buttons that control downloads.
+- Pull-to-refresh.
+- Biometric app lock.
 - Encrypted password export/import.
-- Pull-to-refresh and edge-swipe back gestures.
+- Drag-to-reorder tabs and duplicate-tab detection.
+- Crash reporting and performance profiling.
+
+## Device test matrix to run before release
+
+1. Fresh install -> home screen renders, no permission dialogs at launch.
+2. Load 3 sites in 3 tabs, switch between them: no reloads, address bar and progress correct.
+3. Kill the app from recents, reopen: regular tabs restored, private tabs gone.
+4. Download a 50 MB file: live notification progress, pause, resume, complete, open, share; then repeat with notifications denied (must still download).
+5. Force-stop during a download, reopen: record shows "Interrupted", Resume completes it.
+6. Camera/microphone/location on a real site: OS dialog, then per-site decision in the Permissions dashboard, then revoke and confirm access is refused.
+7. Private tab: browse, check History is empty, background the app, confirm the private tab is gone.
+8. Settings: toggle JavaScript off and reload a script-heavy page (must break), toggle back on (must work without closing the tab).
+9. Rotate, use split screen, and lock the screen during video playback.
+10. Android 10 and Android 14 both, plus one low-RAM device.

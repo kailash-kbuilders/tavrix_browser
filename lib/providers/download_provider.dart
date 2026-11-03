@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../models/download_item.dart';
 import '../services/database_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_service.dart';
 import 'settings_provider.dart';
 
 /// Real downloads: streams bytes to disk, reports true progress, supports
@@ -34,6 +35,7 @@ class DownloadProvider extends ChangeNotifier {
   final Map<String, CancelToken> _tokens = {};
   final Map<String, bool> _pausing = {};
   final Map<String, DateTime> _lastTick = {};
+  bool _askedNotificationPermission = false;
 
   List<DownloadItem> _items = [];
   bool _loaded = false;
@@ -61,8 +63,25 @@ class DownloadProvider extends ChangeNotifier {
     } catch (_) {
       _items = [];
     }
+    // A download cannot survive process death: nothing is running now, so any
+    // record left as queued/running becomes resumable instead of a dead row
+    // with a progress bar that never moves.
+    var changed = false;
+    for (final item in _items) {
+      if (item.status == DownloadStatus.running ||
+          item.status == DownloadStatus.queued) {
+        item.status = DownloadStatus.paused;
+        item.error = 'Interrupted - tap resume';
+        changed = true;
+        await _persist(item);
+      }
+    }
     _loaded = true;
     notifyListeners();
+    if (changed) {
+      // Keep the list stable after the repair pass.
+      notifyListeners();
+    }
   }
 
   // --------------------------------------------------------------- starting
@@ -74,6 +93,17 @@ class DownloadProvider extends ChangeNotifier {
     String? userAgent,
   }) async {
     if (url.trim().isEmpty) return;
+    final uri = Uri.tryParse(url);
+    final scheme = uri?.scheme.toLowerCase() ?? '';
+    if (uri == null ||
+        !(scheme == 'http' ||
+            scheme == 'https' ||
+            scheme == 'blob' ||
+            scheme == 'data')) {
+      // Never hand an unexpected scheme to the file system layer.
+      return;
+    }
+    await _ensureNotificationPermission();
     final directory = await _downloadDirectory();
     final safeName = await _uniqueFilename(directory, filename);
     final item = DownloadItem(
@@ -90,6 +120,22 @@ class DownloadProvider extends ChangeNotifier {
     await _persist(item);
     notifyListeners();
     await _run(item);
+  }
+
+  /// Asked once, at the moment a download starts - the only point where the
+  /// permission is actually useful.
+  Future<void> _ensureNotificationPermission() async {
+    if (_askedNotificationPermission) return;
+    _askedNotificationPermission = true;
+    if (!_settings.settings.notifyProgress &&
+        !_settings.settings.notifyComplete &&
+        !_settings.settings.notifyFailed) {
+      return;
+    }
+    try {
+      if (await _notifications.areNotificationsEnabled()) return;
+      await PermissionService.requestNotifications();
+    } catch (_) {}
   }
 
   Future<void> _run(DownloadItem item) async {

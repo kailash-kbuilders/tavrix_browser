@@ -48,6 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    // Releasing the recogniser stops the microphone when the screen closes.
+    _speech.stop();
+    _speech.cancel();
     _searchController.dispose();
     super.dispose();
   }

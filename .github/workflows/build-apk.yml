@@ -98,10 +98,6 @@ jobs:
               "RECORD_AUDIO",
               "ACCESS_COARSE_LOCATION",
               "ACCESS_FINE_LOCATION",
-              "VIBRATE",
-              "USE_BIOMETRIC",
-              "FOREGROUND_SERVICE",
-              "FOREGROUND_SERVICE_DATA_SYNC",
           ]
           missing = [
               perm for perm in perms
