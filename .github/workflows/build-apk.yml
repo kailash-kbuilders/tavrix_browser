@@ -180,8 +180,15 @@ jobs:
           if manifest.exists():
               m = manifest.read_text()
               m = re.sub(r'android:label="[^"]*"', 'android:label="Tavrix Browser"', m)
+              if 'android:roundIcon=' not in m:
+                  m = m.replace(
+                      'android:icon="@mipmap/ic_launcher"',
+                      'android:icon="@mipmap/ic_launcher"\n        '
+                      'android:roundIcon="@mipmap/ic_launcher_round"',
+                      1,
+                  )
               manifest.write_text(m)
-              print("labelled the app as Tavrix Browser")
+              print("labelled the app as Tavrix Browser (with round icon)")
           PY
 
       # permission_handler_android 14.x is published with compileSdk 37, which

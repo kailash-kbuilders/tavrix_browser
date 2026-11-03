@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resources that are only referenced from Dart code (the notification glyph) or
+  from the launcher (the round icon) are invisible to the release resource
+  shrinker, so keep them explicitly.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_tavrix,@mipmap/ic_launcher_round,@drawable/ic_launcher_foreground,@drawable/ic_launcher_background" />
