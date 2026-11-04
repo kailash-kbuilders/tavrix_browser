@@ -36,10 +36,9 @@ class WebViewStack extends StatelessWidget {
           if (tab.isBlank)
             const SizedBox.expand()
           else
-            TabWebView(
-              key: ValueKey('${tab.id}-${tab.isDesktopMode}'),
-              tab: tab,
-            ),
+            // Keyed by tab id only: switching desktop mode must not throw the
+            // WebView away (that lost scroll position and history).
+            TabWebView(key: ValueKey(tab.id), tab: tab),
       ],
     );
   }

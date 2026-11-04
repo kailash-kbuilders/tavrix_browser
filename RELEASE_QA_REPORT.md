@@ -137,3 +137,62 @@ After the audit, three features that had settings but no implementation were add
 Also changed: `applicationId` is now `com.tavrix_browser.kn` (namespace left at the
 template value so `MainActivity` keeps resolving). Automated suite is now 38 tests,
 `flutter analyze` clean.
+
+## 9. Addendum - v1.3.1 (premium browser experience pass)
+
+### What changed
+
+1. **More menu is a compact bottom sheet.** It opens at 50-66% of the screen
+   height with rounded top corners, a drag handle, scrollable content, dimmed
+   backdrop and the page still visible behind it. Sections: Browser (new tab,
+   new private tab, **tabs**, bookmarks, history), Tools (downloads, find in
+   page, translate, reader, desktop site, save offline, add to home, autofill,
+   share) and Settings (page info, privacy, site permissions, settings).
+2. **One unified Download Manager.** Search across filenames, sort by
+   newest/oldest/largest/name, storage usage line, and category chips (All,
+   Documents, Videos, Audio, Images, Files, Other). Categories are computed from
+   the real MIME type and extension by `classifyDownload()` and are unit-tested.
+   Every row keeps the full action set: pause, resume, cancel, retry, open,
+   share, delete; completed rows show a "Done" pill and tapping opens the file
+   with the system handler.
+3. **Tab cards show the real website.** When the overview opens, each live tab's
+   WebView is asked for a JPEG screenshot (`takeScreenshot`), so cards show an
+   actual page preview plus favicon, real title, domain, private pill and a
+   loading bar. No preview means a clean tinted fallback, never an empty card.
+   Closed tabs store a cleaned title, so "about:blank" no longer appears where a
+   domain exists.
+4. **Desktop mode fixed for real.** It used to recreate the whole WebView (losing
+   scroll position and history) and reload the old controller. It now applies the
+   desktop user agent to the live WebView with `setSettings`, then reloads once.
+   The tab keeps its URL and back/forward history, and the state is per tab.
+5. **Address bar behaves like Chrome.** Tapping it focuses the field and selects
+   the URL; suggestions open in a panel anchored directly beneath the bar and
+   cover the page (the WebView is not disposed), scroll, and dismiss with the
+   keyboard. Rows mix recent searches, bookmarks, history, frequently visited
+   sites, engine autocomplete and a "go to this URL" row for typed URLs, each
+   with a favicon or a kind icon. The system back button closes the panel before
+   navigating.
+
+### Verification
+
+- `flutter analyze` - no issues found.
+- `flutter test` - **44 tests pass**, including new tests for the download
+  classifier and for `suggestionRows` / `existingBytes` against real SQLite.
+- Release APK built by GitHub Actions (`Build APK`, `flutter build apk
+  --release --no-shrink`) and inspected: launcher activity
+  `com.tavrix_browser.kn.MainActivity` present in `classes.dex`, adaptive icons
+  and notification glyph present in the resource table.
+
+### NOT VERIFIED (no device or emulator in this environment)
+
+These were requested by the specification and are implemented, but not executed
+on hardware:
+
+- Tab navigation and state preservation across switching.
+- Address-bar suggestion panel with a real keyboard (height, dismissal).
+- Downloads across every category with real files.
+- Desktop mode on real websites.
+- More menu sizing and swipe-to-dismiss.
+- Recently closed tab restoration after a restart.
+- Behaviour on different Android screen sizes.
+- Pull-to-refresh: **not implemented** (see KNOWN_LIMITATIONS.md).

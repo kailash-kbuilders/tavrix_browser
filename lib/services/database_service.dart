@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -8,6 +10,7 @@ import '../models/history_entry.dart';
 import '../models/offline_page.dart';
 import '../models/shortcut_item.dart';
 import '../models/site_permission.dart';
+import '../models/suggestion_item.dart';
 
 /// SQLite storage for everything that must survive a restart: bookmarks,
 /// history, downloads, shortcuts, closed tabs, site permissions and offline
@@ -288,6 +291,96 @@ class DatabaseService {
       }
     }
     return results.take(limit).toList();
+  }
+
+  /// Suggestions for the address bar: recent searches, bookmarks, history and
+  /// frequently visited pages, each with its real title and URL.
+  Future<List<SuggestionItem>> suggestionRows(String query,
+      {int limit = 8}) async {
+    final needle = query.trim();
+    if (needle.isEmpty) return [];
+    final like = '%$needle%';
+    final items = <SuggestionItem>[];
+    final seen = <String>{};
+
+    void add(SuggestionItem item) {
+      final key = (item.url ?? item.query ?? item.title).toLowerCase();
+      if (key.isEmpty || !seen.add(key)) return;
+      items.add(item);
+    }
+
+    final searches = await db.query('search_history',
+        where: 'query LIKE ?', whereArgs: [like],
+        orderBy: 'searchedAt DESC', limit: limit);
+    for (final row in searches) {
+      final text = row['query'] as String? ?? '';
+      add(SuggestionItem(
+        kind: SuggestionKind.search,
+        title: text,
+        query: text,
+      ));
+    }
+
+    if (items.length < limit) {
+      final saved = await db.query('bookmarks',
+          where: 'title LIKE ? OR url LIKE ?',
+          whereArgs: [like, like],
+          orderBy: 'position ASC',
+          limit: limit);
+      for (final row in saved) {
+        add(SuggestionItem(
+          kind: SuggestionKind.bookmark,
+          title: row['title'] as String? ?? '',
+          url: row['url'] as String? ?? '',
+        ));
+      }
+    }
+
+    if (items.length < limit) {
+      final visited = await db.query('history',
+          where: 'title LIKE ? OR url LIKE ?',
+          whereArgs: [like, like],
+          orderBy: 'visitedAt DESC',
+          limit: limit);
+      for (final row in visited) {
+        add(SuggestionItem(
+          kind: SuggestionKind.history,
+          title: row['title'] as String? ?? '',
+          url: row['url'] as String? ?? '',
+        ));
+      }
+    }
+
+    if (items.length < limit) {
+      // Frequently visited: most hits first.
+      final frequent = await db.rawQuery(
+        'SELECT url, title, COUNT(*) AS hits FROM history '
+        'WHERE url LIKE ? OR title LIKE ? '
+        'GROUP BY url ORDER BY hits DESC LIMIT ?',
+        [like, like, limit],
+      );
+      for (final row in frequent) {
+        add(SuggestionItem(
+          kind: SuggestionKind.frequent,
+          title: row['title'] as String? ?? '',
+          url: row['url'] as String? ?? '',
+        ));
+      }
+    }
+
+    return items.take(limit).toList();
+  }
+
+  /// Total bytes of the files that still exist for the given paths.
+  Future<int> existingBytes(List<String> paths) async {
+    var total = 0;
+    for (final path in paths) {
+      try {
+        final file = File(path);
+        if (await file.exists()) total += await file.length();
+      } catch (_) {}
+    }
+    return total;
   }
 
   // ---------------------------------------------------------------- downloads

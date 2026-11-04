@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/offline_page.dart';
+import '../models/suggestion_item.dart';
 import '../models/shortcut_item.dart';
 import '../providers/bookmark_provider.dart';
 import '../providers/browser_provider.dart';
@@ -18,11 +19,13 @@ import '../services/browser_engine.dart';
 import '../services/database_service.dart';
 import '../services/suggestion_service.dart';
 import '../services/vault_service.dart';
+import '../theme/tokens.dart';
 import '../utils/url_utils.dart';
 import '../widgets/address_bar.dart';
 import '../widgets/browser_menu_sheet.dart';
 import '../widgets/browser_toolbar.dart';
 import '../widgets/find_in_page_bar.dart';
+import '../widgets/ui/tv_widgets.dart';
 import '../widgets/web_view_stack.dart';
 import 'bookmarks_screen.dart';
 import 'downloads_screen.dart';
@@ -47,11 +50,11 @@ class _BrowserScreenState extends State<BrowserScreen>
     with WidgetsBindingObserver {
   final TextEditingController _findController = TextEditingController();
   final VaultService _vault = VaultService();
-  final SuggestionService _suggestions = SuggestionService();
+  final SuggestionService _suggestionService = SuggestionService();
   final GlobalKey<AddressBarState> _addressBarKey =
       GlobalKey<AddressBarState>();
   Timer? _suggestionDebounce;
-  List<String> _suggestionItems = [];
+  List<SuggestionItem> _suggestions = [];
   bool _addressFocused = false;
   bool _findVisible = false;
   int _findMatches = 0;
@@ -67,7 +70,7 @@ class _BrowserScreenState extends State<BrowserScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _suggestionDebounce?.cancel();
-    _suggestions.close();
+    _suggestionService.close();
     _findController.dispose();
     super.dispose();
   }
@@ -116,55 +119,79 @@ class _BrowserScreenState extends State<BrowserScreen>
     }
     final url = UrlUtils.resolveInput(query, settings.searchEngine);
     if (url.isEmpty) return;
-    setState(() => _suggestionItems = []);
+    setState(() => _suggestions = []);
     browser.navigate(tab.id, url);
   }
 
   void _onAddressQueryChanged(String value) {
     _suggestionDebounce?.cancel();
-    final settings = context.read<SettingsProvider>();
     final text = value.trim();
-    if (!settings.settings.searchSuggestions ||
-        text.isEmpty ||
-        UrlUtils.looksLikeUrl(text)) {
-      if (_suggestionItems.isNotEmpty) {
-        setState(() => _suggestionItems = []);
-      }
+    if (text.isEmpty) {
+      if (_suggestions.isNotEmpty) setState(() => _suggestions = []);
       return;
     }
     _suggestionDebounce =
-        Timer(const Duration(milliseconds: 250), () => _fetchSuggestions(text));
+        Timer(const Duration(milliseconds: 220), () => _fetchSuggestions(text));
   }
 
   void _onAddressFocusChanged(bool focused) {
     if (_addressFocused == focused) return;
     _addressFocused = focused;
-    if (!focused && _suggestionItems.isNotEmpty) {
-      setState(() => _suggestionItems = []);
+    if (!focused && _suggestions.isNotEmpty) {
+      setState(() => _suggestions = []);
     }
   }
 
+  /// Local data first (searches, bookmarks, history, frequent sites), then the
+  /// search engine's autocomplete. Never invented results.
   Future<void> _fetchSuggestions(String query) async {
     final settings = context.read<SettingsProvider>();
-    if (!settings.settings.searchSuggestions) return;
     final db = context.read<DatabaseService>();
-    List<String> local = const [];
+    final items = <SuggestionItem>[];
     try {
-      local = await db.localSuggestions(query, limit: 4);
+      items.addAll(await db.suggestionRows(query, limit: 6));
     } catch (_) {}
-    final remote = await _suggestions.remote(
-      settings.searchEngine,
-      query,
-      limit: 6,
-    );
-    final merged = SuggestionService.merge(local, remote);
-    if (!mounted) return;
-    if (!_addressFocused) return;
-    setState(() => _suggestionItems = merged);
+    if (settings.settings.searchSuggestions) {
+      final remote = await _suggestionService.remote(
+        settings.searchEngine,
+        query,
+        limit: 5,
+      );
+      for (final text in remote) {
+        final exists = items.any((item) =>
+            (item.query ?? item.title).toLowerCase() == text.toLowerCase());
+        if (exists) continue;
+        items.add(SuggestionItem(
+          kind: SuggestionKind.search,
+          title: text,
+          query: text,
+        ));
+      }
+    }
+    // A literal "go to this" row for whatever was typed.
+    if (UrlUtils.looksLikeUrl(query)) {
+      items.insert(
+        0,
+        SuggestionItem(
+          kind: SuggestionKind.url,
+          title: UrlUtils.normalizeUrl(query),
+          url: UrlUtils.normalizeUrl(query),
+        ),
+      );
+    }
+    if (!mounted || !_addressFocused) return;
+    setState(() => _suggestions = items.take(10).toList());
   }
 
-  void _applySuggestion(String suggestion) {
-    _addressBarKey.currentState?.applySuggestion(suggestion);
+  void _applySuggestion(SuggestionItem item) {
+    final settings = context.read<SettingsProvider>();
+    final target = item.url != null
+        ? item.url!
+        : UrlUtils.resolveInput(
+            item.query ?? item.title,
+            settings.searchEngine,
+          );
+    _addressBarKey.currentState?.applySuggestion(target);
   }
 
   Future<void> _toggleBookmark() async {
@@ -443,9 +470,17 @@ class _BrowserScreenState extends State<BrowserScreen>
     final credentials = await _vault.forHost(host);
 
     if (!mounted) return;
+    final screenHeight = MediaQuery.of(context).size.height;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      // A menu, not a page: it takes ~60% of the screen, scrolls if needed and
+      // the page stays visible behind it.
+      constraints: BoxConstraints(
+        minHeight: screenHeight * 0.5,
+        maxHeight: screenHeight * 0.66,
+      ),
       builder: (sheetContext) => BrowserMenuSheet(
         isDesktopMode: tab?.isDesktopMode ?? false,
         isPrivate: tab?.isPrivate ?? false,
@@ -464,6 +499,9 @@ class _BrowserScreenState extends State<BrowserScreen>
         break;
       case BrowserMenuAction.newPrivateTab:
         browser.openTab(isPrivate: true);
+        break;
+      case BrowserMenuAction.tabs:
+        _open(const TabOverviewScreen());
         break;
       case BrowserMenuAction.bookmarks:
         _open(const BookmarksScreen());
@@ -560,6 +598,11 @@ class _BrowserScreenState extends State<BrowserScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        if (_addressFocused) {
+          FocusManager.instance.primaryFocus?.unfocus();
+          if (_suggestions.isNotEmpty) setState(() => _suggestions = []);
+          return;
+        }
         if (_findVisible) {
           await _closeFind();
           return;
@@ -612,11 +655,6 @@ class _BrowserScreenState extends State<BrowserScreen>
                       }
                     : () {},
               ),
-              if (_addressFocused && _suggestionItems.isNotEmpty)
-                _SuggestionList(
-                  items: _suggestionItems,
-                  onSelected: _applySuggestion,
-                ),
               if (_findVisible)
                 FindInPageBar(
                   controller: _findController,
@@ -628,9 +666,12 @@ class _BrowserScreenState extends State<BrowserScreen>
                   onClose: _closeFind,
                 ),
               Expanded(
-                child: tab == null
-                    ? const SizedBox.expand()
-                    : tab.isBlank
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: tab == null
+                          ? const SizedBox.expand()
+                          : tab.isBlank
                         ? HomeScreen(
                             onNavigate: (url) => browser.navigate(tab.id, url),
                             onOpenTab: (url, {bool isPrivate = false}) =>
@@ -670,6 +711,18 @@ class _BrowserScreenState extends State<BrowserScreen>
                                 ),
                             ],
                           ),
+                    ),
+                    // Suggestions sit directly under the address bar and cover
+                    // the page, like Chrome. The page itself is never disposed.
+                    if (_addressFocused && _suggestions.isNotEmpty)
+                      Positioned.fill(
+                        child: _SuggestionPanel(
+                          items: _suggestions,
+                          onSelected: _applySuggestion,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -762,43 +815,108 @@ class _ErrorOverlay extends StatelessWidget {
   }
 }
 
-/// Search suggestions under the address bar. Local matches are shown with a
-/// different icon so it is clear where a row came from.
-class _SuggestionList extends StatelessWidget {
-  const _SuggestionList({required this.items, required this.onSelected});
 
-  final List<String> items;
-  final ValueChanged<String> onSelected;
+/// Address-bar suggestion panel: anchored under the bar, scrollable, with a
+/// favicon or a kind icon per row.
+class _SuggestionPanel extends StatelessWidget {
+  const _SuggestionPanel({required this.items, required this.onSelected});
+
+  final List<SuggestionItem> items;
+  final ValueChanged<SuggestionItem> onSelected;
+
+  IconData _iconFor(SuggestionKind kind) {
+    switch (kind) {
+      case SuggestionKind.search:
+        return Icons.search_rounded;
+      case SuggestionKind.history:
+        return Icons.history_rounded;
+      case SuggestionKind.bookmark:
+        return Icons.bookmark_border_rounded;
+      case SuggestionKind.frequent:
+        return Icons.trending_up_rounded;
+      case SuggestionKind.url:
+        return Icons.link_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 280),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
       child: ListView.separated(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
+        padding: const EdgeInsets.only(bottom: TvSpace.xxl),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         itemCount: items.length,
-        separatorBuilder: (context, index) =>
-            const Divider(height: 1, indent: 48),
+        separatorBuilder: (context, index) => Divider(
+          height: 1,
+          indent: TvSpace.page + 44,
+          endIndent: TvSpace.page,
+          color: scheme.outlineVariant.withValues(alpha: 0.4),
+        ),
         itemBuilder: (context, index) {
           final item = items[index];
-          return ListTile(
-            dense: true,
-            leading: Icon(
-              index < 4 ? Icons.history_rounded : Icons.search_rounded,
-              size: 20,
-            ),
-            title: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis),
+          final hasUrl = (item.url ?? '').isNotEmpty;
+          final subtitle = hasUrl
+              ? UrlUtils.hostOf(item.url!)
+              : 'Search with your engine';
+          return InkWell(
             onTap: () => onSelected(item),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: TvSpace.page,
+                vertical: TvSpace.md,
+              ),
+              child: Row(
+                children: [
+                  if (hasUrl)
+                    TvFavicon(url: item.url!, size: 28, radius: TvRadius.sm)
+                  else
+                    Container(
+                      height: 28,
+                      width: 28,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(TvRadius.sm),
+                      ),
+                      child: Icon(
+                        _iconFor(item.kind),
+                        size: 15,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  const SizedBox(width: TvSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          hasUrl
+                              ? UrlUtils.cleanTitle(item.title, item.url!)
+                              : item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TvText.body.copyWith(fontSize: 14.5),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TvText.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (hasUrl)
+                    Icon(
+                      Icons.north_east_rounded,
+                      size: 14,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                ],
+              ),
+            ),
           );
         },
       ),

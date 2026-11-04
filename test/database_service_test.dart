@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tavrix_browser/models/bookmark.dart';
@@ -5,6 +7,7 @@ import 'package:tavrix_browser/models/closed_tab.dart';
 import 'package:tavrix_browser/models/download_item.dart';
 import 'package:tavrix_browser/models/history_entry.dart';
 import 'package:tavrix_browser/models/site_permission.dart';
+import 'package:tavrix_browser/models/suggestion_item.dart';
 import 'package:tavrix_browser/services/database_service.dart';
 
 /// These tests run the real SQLite schema through sqflite_common_ffi, so the
@@ -178,6 +181,44 @@ void main() {
     // Recent search comes first.
     expect(suggestions.first, 'dart language');
     expect(await db.localSuggestions('zzzz'), isEmpty);
+  });
+
+  test('suggestion rows come from real searches, bookmarks and history',
+      () async {
+    await db.insertSearchQuery('tavrix browser');
+    await db.insertBookmark(const Bookmark(
+      title: 'Tavrix docs',
+      url: 'https://tavrix.example/docs',
+      createdAt: 1,
+    ));
+    await db.insertHistory(const HistoryEntry(
+      title: 'Tavrix blog',
+      url: 'https://tavrix.example/blog',
+      domain: 'tavrix.example',
+      visitedAt: 2,
+    ));
+
+    final rows = await db.suggestionRows('tavrix', limit: 8);
+    expect(rows, isNotEmpty);
+    expect(rows.first.kind, SuggestionKind.search);
+    expect(rows.any((row) => row.url == 'https://tavrix.example/docs'), isTrue);
+    expect(rows.any((row) => row.url == 'https://tavrix.example/blog'), isTrue);
+    // No duplicates for the same URL.
+    final urls = rows.map((row) => row.url).whereType<String>().toList();
+    expect(urls.toSet().length, urls.length);
+    expect(await db.suggestionRows('zzzz'), isEmpty);
+  });
+
+  test('existingBytes only counts files that exist', () async {
+    final dir = await Directory.systemTemp.createTemp('tavrix_bytes');
+    final real = File('${dir.path}/a.bin');
+    await real.writeAsBytes(List<int>.filled(120, 7));
+    final bytes = await db.existingBytes([
+      real.path,
+      '${dir.path}/missing.bin',
+    ]);
+    expect(bytes, 120);
+    await dir.delete(recursive: true);
   });
 
   test('closed tabs are capped so the table cannot grow forever', () async {

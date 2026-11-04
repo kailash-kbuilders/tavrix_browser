@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../models/closed_tab.dart';
 import '../models/history_entry.dart';
 import '../models/tab_model.dart';
+import '../services/browser_engine.dart';
 import '../services/database_service.dart';
 import '../utils/constants.dart';
 import '../utils/url_utils.dart';
@@ -434,11 +435,28 @@ class BrowserProvider extends ChangeNotifier {
     }
   }
 
+  /// Desktop mode is applied to the live WebView (user agent + viewport), then
+  /// the page is reloaded once so the site serves its desktop layout. The tab
+  /// keeps its URL and back/forward history.
   Future<void> toggleDesktopMode(String id) async {
     final tab = _tabById(id);
     if (tab == null) return;
     tab.isDesktopMode = !tab.isDesktopMode;
     notifyListeners();
+    final controller = tab.controller;
+    if (controller == null) return;
+    try {
+      await controller.setSettings(
+        settings: BrowserEngine.settingsFor(
+          appSettings: _settings.settings,
+          isPrivate: tab.isPrivate,
+          desktopMode: tab.isDesktopMode,
+        ),
+      );
+    } catch (_) {}
+    try {
+      await controller.reload();
+    } catch (_) {}
   }
 
   // -------------------------------------------------------------- session

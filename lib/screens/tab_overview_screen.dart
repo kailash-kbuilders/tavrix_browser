@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
 
 import '../models/tab_model.dart';
@@ -21,6 +22,41 @@ class TabOverviewScreen extends StatefulWidget {
 class _TabOverviewScreenState extends State<TabOverviewScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  bool _capturing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _captureThumbnails());
+  }
+
+  /// Real page previews: each live WebView is asked for a screenshot when the
+  /// overview opens. Tabs without a controller (blank tabs) simply keep the
+  /// clean fallback card.
+  Future<void> _captureThumbnails() async {
+    if (_capturing) return;
+    _capturing = true;
+    final browser = context.read<BrowserProvider>();
+    var captured = 0;
+    for (final tab in browser.tabs) {
+      if (captured >= 6) break;
+      final controller = tab.controller;
+      if (controller == null || tab.isBlank) continue;
+      try {
+        final bytes = await controller.takeScreenshot(
+          screenshotConfiguration: ScreenshotConfiguration(
+            compressFormat: CompressFormat.JPEG,
+            quality: 50,
+          ),
+        );
+        if (bytes == null || bytes.isEmpty) continue;
+        tab.thumbnail = bytes;
+        captured++;
+        if (mounted) setState(() {});
+      } catch (_) {}
+    }
+    _capturing = false;
+  }
 
   @override
   void dispose() {

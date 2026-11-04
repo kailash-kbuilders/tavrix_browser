@@ -28,7 +28,8 @@ the engine or of this build - none of it is simulated in the UI.
    Android stops the transfer. Records and partial files are kept, so the
    download can be resumed from the Downloads screen.
 8. **Pull-to-refresh** - not wired. The toolbar reload button is the refresh
-   path.
+   path. A WebView cannot be wrapped in a `RefreshIndicator`, and the
+   JavaScript-based workaround conflicts with page scrolling.
 9. **Edge-swipe back** - not wired. The back button and the system back gesture
    (handled by `PopScope`) navigate the page.
 10. **Biometric lock** - `USE_BIOMETRIC` is declared, but no biometric prompt is
@@ -43,7 +44,14 @@ the engine or of this build - none of it is simulated in the UI.
     data is cleared.
 14. **Translation** - opens the current page through Google Translate's web
     translator. There is no in-app translation overlay.
-15. **Reader mode extraction** - heuristic (largest text container). Pages built
+15. **Desktop mode** - Tavrix sends a desktop user agent and reloads the page.
+    Sites that detect the device by other means (screen width, touch support,
+    `navigator.maxTouchPoints`) can still serve a mobile layout; no browser can
+    force those.
+16. **Tab previews** - captured with `takeScreenshot` when the tab overview
+    opens, capped at 6 tabs per open. Tabs without a controller (blank tabs, or
+    a WebView that refused the screenshot) show a tinted fallback card.
+17. **Reader mode extraction** - heuristic (largest text container). Pages built
     entirely from canvas or heavy custom layouts may produce little text, in
     which case Tavrix says "no readable article found" instead of showing an
     empty reader.

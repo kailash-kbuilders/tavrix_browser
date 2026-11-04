@@ -6,6 +6,7 @@ import 'ui/tv_widgets.dart';
 enum BrowserMenuAction {
   newTab,
   newPrivateTab,
+  tabs,
   bookmarks,
   history,
   downloads,
@@ -81,8 +82,11 @@ class BrowserMenuSheet extends StatelessWidget {
           color: scheme.outlineVariant.withValues(alpha: 0.5),
         );
 
-    return SafeArea(
-      child: SingleChildScrollView(
+    return Align(
+      alignment: Alignment.topCenter,
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: TvSpace.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -114,6 +118,7 @@ class BrowserMenuSheet extends StatelessWidget {
                 BrowserMenuAction.newPrivateTab,
                 tint: TvColors.privateAccent),
             divider(),
+            row(Icons.tab_rounded, 'Tabs', BrowserMenuAction.tabs),
             row(Icons.bookmark_border_rounded, 'Bookmarks',
                 BrowserMenuAction.bookmarks),
             row(Icons.history_rounded, 'History', BrowserMenuAction.history),
@@ -151,7 +156,8 @@ class BrowserMenuSheet extends StatelessWidget {
             row(Icons.tune_rounded, 'Site permissions',
                 BrowserMenuAction.sitePermissions),
             row(Icons.settings_outlined, 'Settings', BrowserMenuAction.settings),
-          ],
+            ],
+          ),
         ),
       ),
     );

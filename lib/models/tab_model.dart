@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// One browser tab. The live [controller] is never persisted.
@@ -29,6 +31,10 @@ class TabModel {
 
   /// Set by the WebView widget once the platform view is ready.
   InAppWebViewController? controller;
+
+  /// Latest screenshot of this tab, captured when the tab overview opens.
+  /// Never persisted.
+  Uint8List? thumbnail;
 
   bool get isBlank => url.isEmpty;
 
