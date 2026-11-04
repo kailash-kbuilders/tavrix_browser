@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../models/tab_model.dart';
 import '../providers/browser_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/tokens.dart';
 import '../utils/url_utils.dart';
 import '../widgets/tab_card.dart';
+import '../widgets/ui/tv_widgets.dart';
 
 /// Tab overview: grid or list, search, groups, private separation and
 /// recently closed tabs.
@@ -44,6 +46,28 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                TvSpace.page,
+                0,
+                TvSpace.page,
+                TvSpace.sm,
+              ),
+              child: Row(
+                children: [
+                  TvFavicon(url: tab.url, size: 34, radius: TvRadius.sm),
+                  const SizedBox(width: TvSpace.md),
+                  Expanded(
+                    child: Text(
+                      UrlUtils.cleanTitle(tab.title, tab.url),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TvText.title,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.open_in_new_rounded),
               title: const Text('Open tab'),
@@ -147,7 +171,7 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
   Widget build(BuildContext context) {
     final browser = context.watch<BrowserProvider>();
     final settings = context.watch<SettingsProvider>();
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final isGrid = settings.settings.tabLayout != 'list';
     final regular = _filter(browser.regularTabs);
     final privateTabs = _filter(browser.privateTabs);
@@ -161,8 +185,7 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
             icon: Icon(
               isGrid ? Icons.view_list_rounded : Icons.grid_view_rounded,
             ),
-            onPressed: () =>
-                settings.setTabLayout(isGrid ? 'list' : 'grid'),
+            onPressed: () => settings.setTabLayout(isGrid ? 'list' : 'grid'),
           ),
           IconButton(
             tooltip: 'New private tab',
@@ -173,6 +196,7 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
             },
           ),
           PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
             onSelected: (value) async {
               if (value == 'closeAll') {
                 await browser.closeAllTabs();
@@ -186,6 +210,7 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
                   value: 'closePrivate', child: Text('Close private tabs')),
             ],
           ),
+          const SizedBox(width: TvSpace.sm),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -197,30 +222,26 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
         child: const Icon(Icons.add_rounded),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        padding: const EdgeInsets.only(bottom: TvSpace.xxxl * 2),
         children: [
-          TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              isDense: true,
-              hintText: 'Search tabs',
-              prefixIcon: Icon(Icons.search_rounded),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TvSpace.page,
+              TvSpace.sm,
+              TvSpace.page,
+              0,
             ),
-            onChanged: (value) => setState(() => _query = value),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search tabs',
+                prefixIcon: Icon(Icons.search_rounded, size: 20),
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
           ),
-          const SizedBox(height: 16),
           if (privateTabs.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(Icons.shield_moon_outlined,
-                    size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 6),
-                Text('Private tabs',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-              ],
-            ),
-            const SizedBox(height: 8),
+            const TvSectionHeader(title: 'Private tabs'),
             _TabCollection(
               tabs: privateTabs,
               isGrid: isGrid,
@@ -231,25 +252,19 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
               onLongPress: _tabMenu,
               onClose: (tab) => browser.closeTab(tab.id),
             ),
-            const SizedBox(height: 20),
           ],
-          Row(
-            children: [
-              Text('Open tabs',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Text('${regular.length}',
-                  style: theme.textTheme.labelMedium),
-            ],
+          TvSectionHeader(
+            title: 'Open tabs',
+            action: '${regular.length}',
           ),
-          const SizedBox(height: 8),
           if (regular.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: TvSpace.xl),
               child: Center(
-                child: Text('No open tabs',
-                    style: theme.textTheme.bodyMedium),
+                child: Text(
+                  'No open tabs',
+                  style: TvText.bodyMuted,
+                ),
               ),
             )
           else
@@ -264,32 +279,31 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
               onClose: (tab) => browser.closeTab(tab.id),
             ),
           if (browser.recentlyClosed.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Text('Recently closed',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => browser.refreshRecentlyClosed(),
-                  child: const Text('Refresh'),
-                ),
-              ],
+            TvSectionHeader(
+              title: 'Recently closed',
+              action: 'Refresh',
+              onAction: browser.refreshRecentlyClosed,
             ),
             for (final closed in browser.recentlyClosed)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.restore_rounded),
-                title: Text(
-                  closed.title.isEmpty ? closed.url : closed.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              TvRow(
+                icon: Icons.history_rounded,
+                iconWidget: TvFavicon(
+                  url: closed.url,
+                  size: 34,
+                  radius: TvRadius.sm,
                 ),
-                subtitle: Text(
-                  UrlUtils.displayUrl(closed.url),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                title: UrlUtils.cleanTitle(closed.title, closed.url),
+                subtitle: UrlUtils.hostOf(closed.url).replaceFirst('www.', ''),
+                dense: true,
+                trailing: TvIconButton(
+                  icon: Icons.restore_rounded,
+                  iconSize: 18,
+                  size: 32,
+                  tooltip: 'Reopen',
+                  onTap: () {
+                    browser.restoreClosedTab(closed);
+                    Navigator.of(context).pop();
+                  },
                 ),
                 onTap: () {
                   browser.restoreClosedTab(closed);
@@ -297,6 +311,15 @@ class _TabOverviewScreenState extends State<TabOverviewScreen> {
                 },
               ),
           ],
+          Padding(
+            padding: const EdgeInsets.only(top: TvSpace.xl),
+            child: Center(
+              child: Text(
+                isGrid ? 'Swipe a card to close it' : 'Swipe a row to close it',
+                style: TvText.caption.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -321,33 +344,37 @@ class _TabCollection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isGrid) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: tabs.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.86,
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: TvSpace.page),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: tabs.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: TvSpace.md,
+            crossAxisSpacing: TvSpace.md,
+            childAspectRatio: 0.84,
+          ),
+          itemBuilder: (context, index) {
+            final tab = tabs[index];
+            return Dismissible(
+              key: ValueKey(tab.id),
+              direction: DismissDirection.horizontal,
+              onDismissed: (_) => onClose(tab),
+              background:
+                  const _DismissBackground(alignment: Alignment.centerLeft),
+              secondaryBackground:
+                  const _DismissBackground(alignment: Alignment.centerRight),
+              child: TabCard(
+                tab: tab,
+                onTap: () => onTap(tab),
+                onLongPress: () => onLongPress(tab),
+                onClose: () => onClose(tab),
+              ),
+            );
+          },
         ),
-        itemBuilder: (context, index) {
-          final tab = tabs[index];
-          return Dismissible(
-            key: ValueKey(tab.id),
-            direction: DismissDirection.horizontal,
-            onDismissed: (_) => onClose(tab),
-            background: const _DismissBackground(alignment: Alignment.centerLeft),
-            secondaryBackground:
-                const _DismissBackground(alignment: Alignment.centerRight),
-            child: TabCard(
-              tab: tab,
-              onTap: () => onTap(tab),
-              onLongPress: () => onLongPress(tab),
-              onClose: () => onClose(tab),
-            ),
-          );
-        },
       );
     }
 
@@ -358,30 +385,22 @@ class _TabCollection extends StatelessWidget {
             key: ValueKey('list-${tab.id}'),
             direction: DismissDirection.endToStart,
             onDismissed: (_) => onClose(tab),
-            background: const _DismissBackground(
-                alignment: Alignment.centerRight),
-            child: Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                onTap: () => onTap(tab),
-                onLongPress: () => onLongPress(tab),
-                leading: Icon(tab.isPrivate
-                    ? Icons.shield_moon_outlined
-                    : Icons.public_rounded),
-                title: Text(
-                  tab.title.isEmpty ? 'New tab' : tab.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  UrlUtils.displayUrl(tab.url),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  onPressed: () => onClose(tab),
-                ),
+            background:
+                const _DismissBackground(alignment: Alignment.centerRight),
+            child: TvRow(
+              icon: Icons.public_rounded,
+              iconWidget: TvFavicon(url: tab.url, size: 34, radius: TvRadius.sm),
+              title: UrlUtils.cleanTitle(tab.title, tab.url),
+              subtitle: UrlUtils.hostOf(tab.url).replaceFirst('www.', ''),
+              dense: true,
+              onTap: () => onTap(tab),
+              onLongPress: () => onLongPress(tab),
+              trailing: TvIconButton(
+                icon: Icons.close_rounded,
+                iconSize: 17,
+                size: 30,
+                tooltip: 'Close',
+                onTap: () => onClose(tab),
               ),
             ),
           ),
@@ -397,15 +416,16 @@ class _DismissBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       alignment: alignment,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: TvSpace.xl),
+      margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(18),
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(TvRadius.md),
       ),
-      child: Icon(Icons.close_rounded, color: theme.colorScheme.onErrorContainer),
+      child: Icon(Icons.close_rounded, color: scheme.onErrorContainer),
     );
   }
 }

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/tab_model.dart';
+import '../theme/tokens.dart';
 import '../utils/url_utils.dart';
 
-/// Chrome-style address bar: security icon, URL text, progress line, gestures.
+/// The address bar: the primary control of the browser. Compact pill, security
+/// indicator, inline bookmark action and swipe gestures.
 class AddressBar extends StatefulWidget {
   const AddressBar({
     super.key,
@@ -141,7 +143,7 @@ class AddressBarState extends State<AddressBar> {
             ListTile(
               leading: Icon(widget.isBookmarked
                   ? Icons.bookmark_remove_rounded
-                  : Icons.bookmark_add_rounded),
+                  : Icons.bookmark_add_outlined),
               title:
                   Text(widget.isBookmarked ? 'Remove bookmark' : 'Add bookmark'),
               onTap: () {
@@ -173,16 +175,22 @@ class AddressBarState extends State<AddressBar> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final tab = widget.tab;
     final isSecure = tab?.isSecure ?? true;
     final isLoading = tab?.isLoading ?? false;
+    final hasUrl = (tab?.url ?? '').isNotEmpty;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        TvSpace.lg,
+        TvSpace.sm,
+        TvSpace.lg,
+        TvSpace.xs,
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
             onLongPress: _showContextMenu,
             onHorizontalDragEnd: (details) {
               final velocity = details.primaryVelocity ?? 0;
@@ -192,27 +200,36 @@ class AddressBarState extends State<AddressBar> {
                 widget.onSwipePrevious();
               }
             },
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              height: 46,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(22),
+                color: _editing ? scheme.surfaceContainerHigh : scheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(TvRadius.pill),
+                border: Border.all(
+                  color: _editing
+                      ? scheme.primary.withValues(alpha: 0.55)
+                      : scheme.outlineVariant.withValues(alpha: 0.55),
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  IconButton(
-                    tooltip: 'Connection information',
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      isSecure ? Icons.lock_rounded : Icons.lock_open_rounded,
-                      size: 18,
-                      color: isSecure
-                          ? theme.colorScheme.onSurfaceVariant
-                          : theme.colorScheme.error,
+                  const SizedBox(width: TvSpace.md),
+                  GestureDetector(
+                    onTap: widget.onShowPageInfo,
+                    child: Icon(
+                      hasUrl
+                          ? (isSecure
+                              ? Icons.lock_rounded
+                              : Icons.lock_open_rounded)
+                          : Icons.search_rounded,
+                      size: 16,
+                      color: hasUrl && !isSecure
+                          ? TvColors.warning
+                          : scheme.onSurfaceVariant,
                     ),
-                    onPressed: widget.onShowPageInfo,
                   ),
+                  const SizedBox(width: TvSpace.sm),
                   Expanded(
                     child: TextField(
                       controller: _controller,
@@ -221,54 +238,78 @@ class AddressBarState extends State<AddressBar> {
                       keyboardType: TextInputType.url,
                       autocorrect: false,
                       enableSuggestions: false,
-                      style: theme.textTheme.bodyLarge,
+                      cursorColor: scheme.primary,
+                      cursorWidth: 1.6,
+                      style: TvText.body.copyWith(fontSize: 14.5),
                       decoration: InputDecoration(
                         filled: false,
                         isDense: true,
                         hintText: 'Search or type URL',
+                        hintStyle: TvText.body.copyWith(
+                          fontSize: 14.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                        suffixIcon: _editing
-                            ? IconButton(
-                                icon: const Icon(Icons.close_rounded, size: 18),
-                                onPressed: () => _controller.clear(),
+                        contentPadding: EdgeInsets.zero,
+                        suffixIcon: _editing && _controller.text.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () => _controller.clear(),
+                                child: Icon(
+                                  Icons.cancel_rounded,
+                                  size: 17,
+                                  color: scheme.onSurfaceVariant,
+                                ),
                               )
                             : null,
+                        suffixIconConstraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
                       ),
                       onSubmitted: _submit,
                     ),
                   ),
-                  IconButton(
-                    tooltip:
-                        widget.isBookmarked ? 'Remove bookmark' : 'Bookmark',
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      widget.isBookmarked
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
-                      size: 20,
+                  GestureDetector(
+                    onTap: widget.onToggleBookmark,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: TvSpace.sm,
+                        vertical: TvSpace.sm,
+                      ),
+                      child: Icon(
+                        widget.isBookmarked
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                        size: 19,
+                        color: widget.isBookmarked
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
                     ),
-                    onPressed: widget.onToggleBookmark,
                   ),
+                  const SizedBox(width: TvSpace.xs),
                 ],
               ),
             ),
           ),
-        ),
-        if (isLoading)
           SizedBox(
             height: 2,
-            child: LinearProgressIndicator(
-              value: (tab?.progress ?? 0) > 0 ? tab!.progress : null,
-              minHeight: 2,
-            ),
-          )
-        else
-          const SizedBox(height: 2),
-      ],
+            child: isLoading
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(TvRadius.pill),
+                    child: LinearProgressIndicator(
+                      value: (tab?.progress ?? 0) > 0 ? tab!.progress : null,
+                      minHeight: 2,
+                      backgroundColor: Colors.transparent,
+                    ),
+                  )
+                : null,
+          ),
+        ],
+      ),
     );
   }
 }

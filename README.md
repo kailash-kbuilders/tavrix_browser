@@ -40,6 +40,22 @@ true progress, and permissions are requested only when a feature needs them.
 - **Password vault** - Android Keystore backed secure storage, strong password
   generator, per-site logins, form autofill by domain.
 
+## Design system
+
+The UI is built from one token set, not per-screen styling:
+
+- `lib/theme/tokens.dart` - colour, the 8-point spacing scale, radii and the
+  type scale.
+- `lib/theme/app_theme.dart` - Material 3 theme built from those tokens. Dark is
+  the primary designed theme; light is derived from the same scale.
+- `lib/widgets/ui/tv_widgets.dart` - shared components: `TvSectionHeader`,
+  `TvRow`, `TvActionTile`, `TvIconButton`, `TvEmptyState`, `TvFavicon`,
+  `TvBrandMark`, `TvPill`.
+
+Screens use only these tokens and components, so spacing, radii and type stay
+consistent. Site icons come from the site's own `/favicon.ico` with a letter
+fallback - no third-party favicon service, so browsing domains are not leaked.
+
 ## Store identity
 
 `applicationId` and Gradle `namespace` are both set to **`com.tavrix_browser.kn`**

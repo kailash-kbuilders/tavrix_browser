@@ -123,7 +123,7 @@ class BrowserProvider extends ChangeNotifier {
     if (!tab.isPrivate && tab.url.isNotEmpty) {
       try {
         await _db.insertClosedTab(ClosedTab(
-          title: tab.title,
+          title: UrlUtils.cleanTitle(tab.title, tab.url),
           url: tab.url,
           closedAt: DateTime.now().millisecondsSinceEpoch,
         ));
@@ -169,7 +169,7 @@ class BrowserProvider extends ChangeNotifier {
         if (!tab.isPrivate && tab.url.isNotEmpty) {
           try {
             await _db.insertClosedTab(ClosedTab(
-              title: tab.title,
+              title: UrlUtils.cleanTitle(tab.title, tab.url),
               url: tab.url,
               closedAt: DateTime.now().millisecondsSinceEpoch,
             ));

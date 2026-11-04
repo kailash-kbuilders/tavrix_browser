@@ -9,8 +9,9 @@ import '../providers/download_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/database_service.dart';
 import '../services/permission_service.dart';
-import '../utils/constants.dart';
+import '../theme/tokens.dart';
 import '../utils/url_utils.dart';
+import '../widgets/ui/tv_widgets.dart';
 import 'bookmarks_screen.dart';
 import 'downloads_screen.dart';
 import 'history_screen.dart';
@@ -18,7 +19,8 @@ import 'qr_scan_screen.dart';
 import 'search_engines_screen.dart';
 import 'settings_screen.dart';
 
-/// The Tavrix home screen: branding, search, speed dial and quick sections.
+/// Tavrix home: identity, one search field, quick actions, speed dial and the
+/// few sections that are genuinely useful before you start browsing.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -59,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final db = context.read<DatabaseService>();
     try {
       final shortcuts = await db.shortcuts();
-      final topSites = await db.mostVisited(limit: 6);
+      final topSites = await db.mostVisited(limit: 4);
       if (!mounted) return;
       setState(() {
         _shortcuts = shortcuts;
@@ -126,8 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _editShortcut({ShortcutItem? existing}) async {
-    final titleController =
-        TextEditingController(text: existing?.title ?? '');
+    final titleController = TextEditingController(text: existing?.title ?? '');
     final urlController = TextEditingController(text: existing?.url ?? '');
     final result = await showDialog<bool>(
       context: context,
@@ -140,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: titleController,
               decoration: const InputDecoration(labelText: 'Name'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: TvSpace.md),
             TextField(
               controller: urlController,
               decoration: const InputDecoration(labelText: 'URL'),
@@ -169,7 +170,8 @@ class _HomeScreenState extends State<HomeScreen> {
         : titleController.text.trim();
     final normalized = UrlUtils.looksLikeUrl(url)
         ? UrlUtils.normalizeUrl(url)
-        : UrlUtils.resolveInput(url, context.read<SettingsProvider>().searchEngine);
+        : UrlUtils.resolveInput(
+            url, context.read<SettingsProvider>().searchEngine);
     try {
       if (existing == null) {
         await db.insertShortcut(ShortcutItem(
@@ -198,6 +200,28 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                TvSpace.page,
+                0,
+                TvSpace.page,
+                TvSpace.sm,
+              ),
+              child: Row(
+                children: [
+                  TvFavicon(url: shortcut.url, size: 34, radius: TvRadius.sm),
+                  const SizedBox(width: TvSpace.md),
+                  Expanded(
+                    child: Text(
+                      shortcut.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TvText.title,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.open_in_new_rounded),
               title: const Text('Open'),
@@ -207,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.edit_rounded),
+              leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
@@ -261,197 +285,273 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final settings = context.watch<SettingsProvider>();
     final browser = context.watch<BrowserProvider>();
     final downloads = context.watch<DownloadProvider>();
     final recentDownloads = downloads.finished.take(3).toList();
     final recentlyClosed = browser.recentlyClosed.take(3).toList();
+    final compact = settings.settings.compactLayout;
 
     return RefreshIndicator(
       onRefresh: _load,
+      color: scheme.primary,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: TvSpace.xxl),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      TavrixConstants.appName,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      TavrixConstants.tagline,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TvSpace.page,
+              TvSpace.lg,
+              TvSpace.md,
+              TvSpace.lg,
+            ),
+            child: Row(
+              children: [
+                const TvBrandMark(),
+                const Spacer(),
+                TvIconButton(
+                  icon: Icons.shield_moon_outlined,
+                  tooltip: 'Private tab',
+                  onTap: () => widget.onOpenTab('', isPrivate: true),
+                ),
+                const SizedBox(width: TvSpace.xs),
+                TvIconButton(
+                  icon: Icons.settings_outlined,
+                  tooltip: 'Settings',
+                  onTap: () => _open(const SettingsScreen()),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: TvSpace.page),
+            child: Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(TvRadius.lg),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.6),
                 ),
               ),
-              IconButton(
-                tooltip: 'Private tab',
-                icon: const Icon(Icons.shield_moon_outlined),
-                onPressed: () => widget.onOpenTab('', isPrivate: true),
-              ),
-              IconButton(
-                tooltip: 'Settings',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => _open(const SettingsScreen()),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _searchController,
-            textInputAction: TextInputAction.go,
-            onSubmitted: _submit,
-            decoration: InputDecoration(
-              hintText: 'Search with ${settings.searchEngine.name}',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
+              padding: const EdgeInsets.only(left: TvSpace.lg, right: TvSpace.xs),
+              child: Row(
                 children: [
-                  IconButton(
-                    tooltip: 'Voice search',
-                    icon: const Icon(Icons.mic_none_rounded),
-                    onPressed: _voiceSearch,
+                  Icon(Icons.search_rounded,
+                      size: 20, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: TvSpace.md),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.go,
+                      onSubmitted: _submit,
+                      style: TvText.body.copyWith(fontSize: 15),
+                      decoration: InputDecoration(
+                        filled: false,
+                        isDense: true,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: TvSpace.lg),
+                        hintText: 'Search with ${settings.searchEngine.name}',
+                        hintStyle: TvText.body.copyWith(
+                          fontSize: 15,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ),
-                  IconButton(
+                  TvIconButton(
+                    icon: Icons.mic_none_rounded,
+                    iconSize: 19,
+                    size: 36,
+                    tooltip: 'Voice search',
+                    onTap: _voiceSearch,
+                  ),
+                  TvIconButton(
+                    icon: Icons.qr_code_scanner_rounded,
+                    iconSize: 19,
+                    size: 36,
                     tooltip: 'Scan QR code',
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
-                    onPressed: _scanQr,
+                    onTap: _scanQr,
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ActionChip(
-                avatar: const Icon(Icons.travel_explore_rounded, size: 18),
-                label: Text(settings.searchEngine.name),
-                onPressed: () => _open(const SearchEnginesScreen()),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.bookmark_border_rounded, size: 18),
-                label: const Text('Bookmarks'),
-                onPressed: () => _open(const BookmarksScreen()),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.history_rounded, size: 18),
-                label: const Text('History'),
-                onPressed: () => _open(const HistoryScreen()),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.download_rounded, size: 18),
-                label: const Text('Downloads'),
-                onPressed: () => _open(const DownloadsScreen()),
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TvSpace.page,
+              TvSpace.md,
+              TvSpace.page,
+              0,
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => _open(const SearchEnginesScreen()),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: TvSpace.md,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(TvRadius.pill),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.travel_explore_rounded,
+                            size: 14, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 6),
+                        Text(settings.searchEngine.name, style: TvText.label),
+                        const SizedBox(width: 2),
+                        Icon(Icons.expand_more_rounded,
+                            size: 15, color: scheme.onSurfaceVariant),
+                      ],
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                if (recentlyClosed.isNotEmpty)
+                  Text(
+                    '${browser.tabs.length} tab${browser.tabs.length == 1 ? '' : 's'}',
+                    style: TvText.caption,
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
-          _SectionHeader(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TvSpace.page,
+              TvSpace.xl,
+              TvSpace.page,
+              0,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TvActionTile(
+                    icon: Icons.bookmark_border_rounded,
+                    label: 'Bookmarks',
+                    onTap: () => _open(const BookmarksScreen()),
+                  ),
+                ),
+                Expanded(
+                  child: TvActionTile(
+                    icon: Icons.history_rounded,
+                    label: 'History',
+                    onTap: () => _open(const HistoryScreen()),
+                  ),
+                ),
+                Expanded(
+                  child: TvActionTile(
+                    icon: Icons.download_outlined,
+                    label: 'Downloads',
+                    onTap: () => _open(const DownloadsScreen()),
+                    badge: downloads.active.isEmpty
+                        ? null
+                        : '${downloads.active.length}',
+                  ),
+                ),
+                Expanded(
+                  child: TvActionTile(
+                    icon: Icons.shield_moon_outlined,
+                    label: 'Private',
+                    onTap: () => widget.onOpenTab('', isPrivate: true),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TvSectionHeader(
             title: 'Shortcuts',
             action: 'Add',
             onAction: () => _editShortcut(),
           ),
-          const SizedBox(height: 12),
           if (_loading)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
+              padding: EdgeInsets.symmetric(vertical: TvSpace.xl),
+              child: Center(
+                child: SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
             )
           else
-            GridView.count(
-              crossAxisCount: settings.settings.compactLayout ? 5 : 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.92,
-              children: [
-                for (final shortcut in _shortcuts)
-                  _ShortcutTile(
-                    title: shortcut.title,
-                    url: shortcut.url,
-                    onTap: () => widget.onNavigate(shortcut.url),
-                    onLongPress: () => _shortcutMenu(shortcut),
-                  ),
-                _AddShortcutTile(onTap: () => _editShortcut()),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: TvSpace.page),
+              child: GridView.count(
+                crossAxisCount: compact ? 5 : 4,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: TvSpace.lg,
+                crossAxisSpacing: TvSpace.md,
+                childAspectRatio: 0.78,
+                children: [
+                  for (final shortcut in _shortcuts)
+                    _ShortcutTile(
+                      shortcut: shortcut,
+                      onTap: () => widget.onNavigate(shortcut.url),
+                      onLongPress: () => _shortcutMenu(shortcut),
+                    ),
+                  _AddShortcutTile(onTap: () => _editShortcut()),
+                ],
+              ),
             ),
           if (recentlyClosed.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const _SectionHeader(title: 'Recently closed'),
-            const SizedBox(height: 8),
+            const TvSectionHeader(title: 'Recently closed'),
             for (final closed in recentlyClosed)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.restore_rounded),
-                title: Text(
-                  closed.title.isEmpty ? closed.url : closed.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              TvRow(
+                icon: Icons.history_rounded,
+                iconWidget: TvFavicon(
+                  url: closed.url,
+                  size: 34,
+                  radius: TvRadius.sm,
                 ),
-                subtitle: Text(
-                  UrlUtils.displayUrl(closed.url),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                title: UrlUtils.cleanTitle(closed.title, closed.url),
+                subtitle: UrlUtils.hostOf(closed.url).replaceFirst('www.', ''),
+                dense: true,
+                trailing: TvIconButton(
+                  icon: Icons.restore_rounded,
+                  iconSize: 18,
+                  size: 32,
+                  tooltip: 'Reopen',
+                  onTap: () => browser.restoreClosedTab(closed),
                 ),
                 onTap: () => widget.onOpenTab(closed.url),
               ),
           ],
           if (recentDownloads.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _SectionHeader(
+            TvSectionHeader(
               title: 'Recent downloads',
               action: 'All',
               onAction: () => _open(const DownloadsScreen()),
             ),
-            const SizedBox(height: 8),
             for (final download in recentDownloads)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.insert_drive_file_outlined),
-                title: Text(
-                  download.filename,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(download.statusLabel),
+              TvRow(
+                icon: Icons.insert_drive_file_outlined,
+                title: download.filename,
+                subtitle: download.statusLabel,
+                dense: true,
                 onTap: () => _open(const DownloadsScreen()),
               ),
           ],
           if (_topSites.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const _SectionHeader(title: 'Top sites'),
-            const SizedBox(height: 8),
+            const TvSectionHeader(title: 'Top sites'),
             for (final site in _topSites)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.public_rounded),
-                title: Text(
-                  site.title.isEmpty ? site.url : site.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  site.domain,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              TvRow(
+                icon: Icons.public_rounded,
+                iconWidget:
+                    TvFavicon(url: site.url, size: 34, radius: TvRadius.sm),
+                title: UrlUtils.cleanTitle(site.title, site.url),
+                subtitle: site.domain,
+                dense: true,
                 onTap: () => widget.onNavigate(site.url),
               ),
           ],
@@ -461,80 +561,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.action, this.onAction});
-
-  final String title;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const Spacer(),
-        if (action != null)
-          TextButton(onPressed: onAction, child: Text(action!)),
-      ],
-    );
-  }
-}
-
 class _ShortcutTile extends StatelessWidget {
   const _ShortcutTile({
-    required this.title,
-    required this.url,
+    required this.shortcut,
     required this.onTap,
     required this.onLongPress,
   });
 
-  final String title;
-  final String url;
+  final ShortcutItem shortcut;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final letter = title.isEmpty ? '?' : title[0].toUpperCase();
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(TvRadius.md),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: 52,
-            width: 52,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              letter,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          TvFavicon(url: shortcut.url, size: 52, radius: TvRadius.lg),
+          const SizedBox(height: TvSpace.sm),
           Text(
-            title,
-            maxLines: 1,
+            shortcut.title,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: theme.textTheme.labelMedium,
+            style: TvText.caption.copyWith(height: 1.25),
           ),
         ],
       ),
@@ -549,25 +603,27 @@ class _AddShortcutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(TvRadius.md),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             height: 52,
             width: 52,
             decoration: BoxDecoration(
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(TvRadius.lg),
+              border: Border.all(
+                color: scheme.outlineVariant,
+                style: BorderStyle.solid,
+              ),
             ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.add_rounded),
+            child: Icon(Icons.add_rounded, size: 22, color: scheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 8),
-          Text('Add', style: theme.textTheme.labelMedium),
+          const SizedBox(height: TvSpace.sm),
+          const Text('Add', style: TvText.caption),
         ],
       ),
     );

@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/credential.dart';
 import '../services/vault_service.dart';
+import '../theme/tokens.dart';
+import '../widgets/ui/tv_widgets.dart';
 
 /// Local password vault. Entries are stored in Keystore backed secure storage.
 class PasswordManagerScreen extends StatefulWidget {
@@ -135,11 +137,26 @@ class _PasswordManagerScreenState extends State<PasswordManagerScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
           : _credentials.isEmpty
-              ? const Center(child: Text('No saved logins yet'))
+              ? TvEmptyState(
+                  icon: Icons.key_rounded,
+                  title: 'No saved logins yet',
+                  message:
+                      'Add a login and Tavrix can fill the sign-in form for that site from the menu.',
+                  actionLabel: 'Add login',
+                  onAction: () => _edit(),
+                )
               : ListView.separated(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: TvSpace.md,
+                  ),
                   itemCount: _credentials.length,
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1, indent: 56),

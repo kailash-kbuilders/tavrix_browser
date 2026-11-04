@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Bottom or top navigation toolbar.
+import '../theme/tokens.dart';
+
+/// Bottom navigation bar: back, forward, reload, home, tabs and menu.
 class BrowserToolbar extends StatelessWidget {
   const BrowserToolbar({
     super.key,
@@ -31,78 +33,94 @@ class BrowserToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget button(
+      IconData icon,
+      String tooltip,
+      VoidCallback? onTap, {
+      bool emphasised = false,
+    }) {
+      final enabled = onTap != null;
+      return Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(TvRadius.md),
+          child: SizedBox(
+            height: 44,
+            width: 44,
+            child: Icon(
+              icon,
+              size: 21,
+              color: enabled
+                  ? (emphasised ? scheme.primary : scheme.onSurface)
+                  : scheme.onSurfaceVariant.withValues(alpha: 0.3),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: scheme.surface,
         border: Border(
           top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: TvSpace.sm,
+        vertical: TvSpace.xs,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          IconButton(
-            tooltip: 'Back',
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: canGoBack ? onBack : null,
+          button(
+            Icons.arrow_back_ios_new_rounded,
+            'Back',
+            canGoBack ? onBack : null,
           ),
-          IconButton(
-            tooltip: 'Forward',
-            icon: const Icon(Icons.arrow_forward_ios_rounded, size: 20),
-            onPressed: canGoForward ? onForward : null,
+          button(
+            Icons.arrow_forward_ios_rounded,
+            'Forward',
+            canGoForward ? onForward : null,
           ),
-          IconButton(
-            tooltip: isLoading ? 'Stop' : 'Reload',
-            icon: Icon(
-              isLoading ? Icons.close_rounded : Icons.refresh_rounded,
-              size: 22,
-            ),
-            onPressed: onReload,
+          button(
+            isLoading ? Icons.close_rounded : Icons.refresh_rounded,
+            isLoading ? 'Stop' : 'Reload',
+            onReload,
           ),
-          IconButton(
-            tooltip: 'Home',
-            icon: const Icon(Icons.home_rounded, size: 22),
-            onPressed: onHome,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: InkWell(
-              onTap: onTabs,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isPrivate
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline,
-                      width: 1.4,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$tabCount',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: isPrivate ? theme.colorScheme.primary : null,
-                    ),
-                  ),
+          button(Icons.home_outlined, 'Home', onHome),
+          InkWell(
+            onTap: onTabs,
+            borderRadius: BorderRadius.circular(TvRadius.sm),
+            child: Container(
+              height: 30,
+              constraints: const BoxConstraints(minWidth: 30),
+              padding: const EdgeInsets.symmetric(horizontal: TvSpace.sm),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(TvRadius.sm),
+                border: Border.all(
+                  color: isPrivate
+                      ? TvColors.privateAccent.withValues(alpha: 0.8)
+                      : scheme.outline,
+                  width: 1.4,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$tabCount',
+                style: TvText.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: isPrivate ? TvColors.privateAccent : scheme.onSurface,
                 ),
               ),
             ),
           ),
-          IconButton(
-            tooltip: 'Menu',
-            icon: const Icon(Icons.more_vert_rounded, size: 22),
-            onPressed: onMenu,
-          ),
+          button(Icons.more_vert_rounded, 'Menu', onMenu),
         ],
       ),
     );

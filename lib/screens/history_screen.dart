@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/history_provider.dart';
+import '../theme/tokens.dart';
 import '../utils/navigation_helper.dart';
+import '../utils/url_utils.dart';
+import '../widgets/ui/tv_widgets.dart';
 
 /// Browsing history grouped by day, with search and range deletion.
 class HistoryScreen extends StatefulWidget {
@@ -35,13 +38,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final provider = context.watch<HistoryProvider>();
     final grouped = provider.grouped;
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('History'),
         actions: [
           PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
             onSelected: (value) async {
               if (value == 'hour') {
                 await provider.clearRange(range: const Duration(hours: 1));
@@ -55,73 +58,86 @@ class _HistoryScreenState extends State<HistoryScreen> {
             },
             itemBuilder: (menuContext) => const [
               PopupMenuItem(value: 'hour', child: Text('Clear last hour')),
-              PopupMenuItem(value: 'day', child: Text('Clear last 24 hours')),
+              PopupMenuItem(
+                  value: 'day', child: Text('Clear last 24 hours')),
               PopupMenuItem(value: 'week', child: Text('Clear last 7 days')),
               PopupMenuItem(value: 'all', child: Text('Clear all history')),
             ],
           ),
+          const SizedBox(width: TvSpace.sm),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              TvSpace.page,
+              TvSpace.sm,
+              TvSpace.page,
+              TvSpace.sm,
+            ),
             child: TextField(
               controller: _searchController,
               decoration: const InputDecoration(
-                isDense: true,
                 hintText: 'Search history',
-                prefixIcon: Icon(Icons.search_rounded),
+                prefixIcon: Icon(Icons.search_rounded, size: 20),
               ),
               onChanged: provider.search,
             ),
           ),
           Expanded(
             child: provider.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
                 : keys.isEmpty
-                    ? Center(
-                        child: Text(
-                          provider.query.isEmpty
-                              ? 'No history yet'
-                              : 'No matching pages',
-                        ),
+                    ? TvEmptyState(
+                        icon: Icons.history_rounded,
+                        title: provider.query.isEmpty
+                            ? 'No history yet'
+                            : 'No matching pages',
+                        message: provider.query.isEmpty
+                            ? 'Pages you visit will show up here. Private tabs are never recorded.'
+                            : 'Try a different word.',
                       )
                     : ListView(
-                        padding: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.only(bottom: TvSpace.xxl),
                         children: [
                           for (final key in keys) ...[
-                            Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 16, 16, 6),
-                              child: Text(
-                                _label(key),
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            TvSectionHeader(
+                              title: _label(key),
+                              padding: const EdgeInsets.fromLTRB(
+                                TvSpace.page,
+                                TvSpace.lg,
+                                TvSpace.page,
+                                TvSpace.xs,
                               ),
                             ),
                             for (final entry in grouped[key]!)
-                              ListTile(
-                                leading: const Icon(Icons.public_rounded),
-                                title: Text(
-                                  entry.title.isEmpty
-                                      ? entry.url
-                                      : entry.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              TvRow(
+                                icon: Icons.public_rounded,
+                                iconWidget: TvFavicon(
+                                  url: entry.url,
+                                  size: 34,
+                                  radius: TvRadius.sm,
                                 ),
-                                subtitle: Text(
-                                  '${entry.domain} - ${DateFormat.Hm().format(entry.visitedDate)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                title:
+                                    UrlUtils.cleanTitle(entry.title, entry.url),
+                                subtitle:
+                                    '${entry.domain} · ${DateFormat.Hm().format(entry.visitedDate)}',
+                                dense: true,
                                 onTap: () =>
                                     openUrlInBrowser(context, entry.url),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.close_rounded, size: 18),
-                                  onPressed: () => provider.removeEntry(entry),
+                                trailing: TvIconButton(
+                                  icon: Icons.close_rounded,
+                                  iconSize: 17,
+                                  size: 30,
+                                  tooltip: 'Remove',
+                                  onTap: () => provider.removeEntry(entry),
                                 ),
                               ),
                           ],
@@ -134,8 +150,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   String _label(String key) {
-    final parts = key.split('-');
-    if (parts.length != 3) return key;
     final date = DateTime.tryParse(key);
     if (date == null) return key;
     final now = DateTime.now();

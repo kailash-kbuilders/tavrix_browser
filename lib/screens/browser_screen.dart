@@ -774,8 +774,15 @@ class _SuggestionList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      constraints: const BoxConstraints(maxHeight: 260),
-      color: theme.colorScheme.surfaceContainerLow,
+      constraints: const BoxConstraints(maxHeight: 280),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
       child: ListView.separated(
         shrinkWrap: true,
         padding: EdgeInsets.zero,

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/tokens.dart';
+import 'ui/tv_widgets.dart';
+
 enum BrowserMenuAction {
   newTab,
   newPrivateTab,
@@ -21,8 +24,8 @@ enum BrowserMenuAction {
   settings,
 }
 
-/// The browser menu. Every entry maps to a real action handled by
-/// BrowserScreen.
+/// The browser menu, grouped so it reads as three short lists instead of one
+/// long one.
 class BrowserMenuSheet extends StatelessWidget {
   const BrowserMenuSheet({
     super.key,
@@ -39,79 +42,115 @@ class BrowserMenuSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
 
-    Widget item(IconData icon, String label, BrowserMenuAction action) {
-      return ListTile(
-        leading: Icon(icon, size: 22),
-        title: Text(label),
+    Widget row(IconData icon, String label, BrowserMenuAction action,
+        {Color? tint}) {
+      return InkWell(
         onTap: () {
           Navigator.of(context).pop();
           onSelected(action);
         },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: TvSpace.page,
+            vertical: TvSpace.md,
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: tint ?? scheme.onSurfaceVariant),
+              const SizedBox(width: TvSpace.lg),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TvText.body.copyWith(
+                    color: tint ?? scheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
+    Widget divider() => Divider(
+          height: 1,
+          indent: TvSpace.page,
+          endIndent: TvSpace.page,
+          color: scheme.outlineVariant.withValues(alpha: 0.5),
+        );
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: TvSpace.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.fromLTRB(
+                TvSpace.page,
+                TvSpace.sm,
+                TvSpace.page,
+                TvSpace.md,
+              ),
               child: Row(
                 children: [
-                  Text('Menu', style: theme.textTheme.titleMedium),
+                  const TvBrandMark(compact: true),
                   const Spacer(),
                   if (isPrivate)
-                    Chip(
-                      label: const Text('Private'),
-                      visualDensity: VisualDensity.compact,
-                      side: BorderSide(color: theme.colorScheme.primary),
+                    const TvPill(
+                      label: 'Private',
+                      icon: Icons.shield_moon_outlined,
+                      color: TvColors.privateAccent,
                     ),
                 ],
               ),
             ),
-            item(Icons.add_rounded, 'New tab', BrowserMenuAction.newTab),
-            item(Icons.lock_outline_rounded, 'New private tab',
-                BrowserMenuAction.newPrivateTab),
-            const Divider(height: 12),
-            item(Icons.bookmark_border_rounded, 'Bookmarks',
+            divider(),
+            row(Icons.add_rounded, 'New tab', BrowserMenuAction.newTab),
+            row(Icons.shield_moon_outlined, 'New private tab',
+                BrowserMenuAction.newPrivateTab,
+                tint: TvColors.privateAccent),
+            divider(),
+            row(Icons.bookmark_border_rounded, 'Bookmarks',
                 BrowserMenuAction.bookmarks),
-            item(Icons.history_rounded, 'History', BrowserMenuAction.history),
-            item(Icons.download_rounded, 'Downloads',
+            row(Icons.history_rounded, 'History', BrowserMenuAction.history),
+            row(Icons.download_outlined, 'Downloads',
                 BrowserMenuAction.downloads),
-            item(Icons.notifications_none_rounded, 'Notifications',
+            row(Icons.notifications_none_rounded, 'Notifications',
                 BrowserMenuAction.notifications),
-            const Divider(height: 12),
-            item(Icons.search_rounded, 'Find in page',
+            divider(),
+            row(Icons.search_rounded, 'Find in page',
                 BrowserMenuAction.findInPage),
-            item(Icons.translate_rounded, 'Translate page',
+            row(Icons.translate_rounded, 'Translate page',
                 BrowserMenuAction.translate),
-            item(Icons.chrome_reader_mode_outlined, 'Reader mode',
+            row(Icons.chrome_reader_mode_outlined, 'Reader mode',
                 BrowserMenuAction.readerMode),
-            item(
-              isDesktopMode ? Icons.smartphone_rounded : Icons.desktop_windows_outlined,
+            row(
+              isDesktopMode
+                  ? Icons.smartphone_rounded
+                  : Icons.desktop_windows_outlined,
               isDesktopMode ? 'Mobile site' : 'Desktop site',
               BrowserMenuAction.desktopSite,
             ),
-            item(Icons.cloud_download_outlined, 'Save page offline',
+            row(Icons.cloud_download_outlined, 'Save page offline',
                 BrowserMenuAction.saveOffline),
-            item(Icons.add_to_home_screen_outlined, 'Add to home screen',
+            row(Icons.add_to_home_screen_outlined, 'Add to home screen',
                 BrowserMenuAction.addToHome),
-            item(Icons.key_rounded, 'Autofill saved login',
-                BrowserMenuAction.autofill),
-            const Divider(height: 12),
-            item(Icons.share_rounded, 'Share page', BrowserMenuAction.share),
-            item(Icons.info_outline_rounded, 'Page information',
+            if (canAutofill)
+              row(Icons.key_rounded, 'Autofill saved login',
+                  BrowserMenuAction.autofill),
+            divider(),
+            row(Icons.share_rounded, 'Share page', BrowserMenuAction.share),
+            row(Icons.info_outline_rounded, 'Page information',
                 BrowserMenuAction.pageInfo),
-            item(Icons.shield_outlined, 'Privacy and security',
+            row(Icons.shield_outlined, 'Privacy and security',
                 BrowserMenuAction.privacy),
-            item(Icons.tune_rounded, 'Site permissions',
+            row(Icons.tune_rounded, 'Site permissions',
                 BrowserMenuAction.sitePermissions),
-            item(Icons.settings_outlined, 'Settings', BrowserMenuAction.settings),
+            row(Icons.settings_outlined, 'Settings', BrowserMenuAction.settings),
           ],
         ),
       ),

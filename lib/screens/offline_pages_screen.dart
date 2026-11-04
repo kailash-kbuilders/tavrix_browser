@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/offline_page.dart';
 import '../services/database_service.dart';
+import '../widgets/ui/tv_widgets.dart';
 import '../utils/navigation_helper.dart';
 
 /// Saved pages for offline reading.
@@ -38,10 +39,20 @@ class _OfflinePagesScreenState extends State<OfflinePagesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Offline pages')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
           : _pages.isEmpty
-              ? const Center(
-                  child: Text('No saved pages. Use the menu to save one.'))
+              ? const TvEmptyState(
+                  icon: Icons.article_outlined,
+                  title: 'No offline pages',
+                  message:
+                      'Open a page and choose "Save page offline" from the menu to read it without a network.',
+                )
               : ListView.separated(
                   itemCount: _pages.length,
                   separatorBuilder: (context, index) => const Divider(height: 1),

@@ -8,6 +8,8 @@ import '../providers/permission_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/browser_engine.dart';
 import '../services/database_service.dart';
+import '../theme/tokens.dart';
+import '../widgets/ui/tv_widgets.dart';
 import '../utils/url_utils.dart';
 
 /// Privacy dashboard: connection status, data clearing and tracking controls.
@@ -61,10 +63,26 @@ class PrivacyScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          Card(
-            margin: const EdgeInsets.all(16),
+          Container(
+            margin: const EdgeInsets.fromLTRB(
+              TvSpace.page,
+              TvSpace.sm,
+              TvSpace.page,
+              0,
+            ),
+            padding: const EdgeInsets.all(TvSpace.lg),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(TvRadius.md),
+              border: Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.5),
+              ),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -92,6 +110,7 @@ class PrivacyScreen extends StatelessWidget {
               ),
             ),
           ),
+          const TvSectionHeader(title: 'Tracking and content'),
           SwitchListTile(
             secondary: const Icon(Icons.do_not_disturb_on_outlined),
             title: const Text('Do Not Track'),
@@ -112,7 +131,7 @@ class PrivacyScreen extends StatelessWidget {
             value: settings.settings.cookiesEnabled,
             onChanged: settings.setCookiesEnabled,
           ),
-          const Divider(height: 24),
+          const TvSectionHeader(title: 'Clear data'),
           ListTile(
             leading: const Icon(Icons.cleaning_services_outlined),
             title: const Text('Clear cookies'),
@@ -154,9 +173,14 @@ class PrivacyScreen extends StatelessWidget {
             subtitle: Text('${permissions.sites.length} stored decision(s)'),
             onTap: permissions.resetAll,
           ),
-          const Divider(height: 24),
+          const TvSectionHeader(title: 'Private browsing'),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.fromLTRB(
+              TvSpace.page,
+              0,
+              TvSpace.page,
+              TvSpace.xl,
+            ),
             child: Text(
               'Private tabs use an isolated WebView session: no history is '
               'written, cookies stay in memory, and tabs close when the app '

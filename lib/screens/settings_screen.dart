@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import '../services/notification_service.dart';
 import '../services/permission_service.dart';
 import '../utils/constants.dart';
+import '../widgets/ui/tv_widgets.dart';
 import 'about_screen.dart';
 import 'offline_pages_screen.dart';
 import 'password_manager_screen.dart';
@@ -24,16 +25,7 @@ class SettingsScreen extends StatelessWidget {
     final app = settings.settings;
     final theme = Theme.of(context);
 
-    Widget header(String text) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-          child: Text(
-            text,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        );
+    Widget header(String text) => TvSectionHeader(title: text);
 
     Widget switchTile(
       String title,

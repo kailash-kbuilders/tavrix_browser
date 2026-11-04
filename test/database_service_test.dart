@@ -28,6 +28,7 @@ void main() {
       'shortcuts',
       'closed_tabs',
       'offline_pages',
+      'search_history',
     ]) {
       await database.delete(table);
     }

@@ -3,7 +3,7 @@ import 'search_engine.dart';
 /// Every user preference. Persisted as JSON in SharedPreferences.
 class AppSettings {
   AppSettings({
-    this.themeMode = 'system',
+    this.themeMode = 'dark',
     this.accentColor = 0xFF3B6FF6,
     this.searchEngineId = 'google',
     this.toolbarPosition = 'bottom',
@@ -129,7 +129,7 @@ class AppSettings {
   }
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        themeMode: _string(json['themeMode'], 'system'),
+        themeMode: _string(json['themeMode'], 'dark'),
         accentColor: _int(json['accentColor'], 0xFF3B6FF6),
         searchEngineId: _string(json['searchEngineId'], 'google'),
         toolbarPosition: _string(json['toolbarPosition'], 'bottom'),

@@ -6,7 +6,7 @@ void main() {
   group('AppSettings', () {
     test('defaults are sensible', () {
       final settings = AppSettings();
-      expect(settings.themeMode, 'system');
+      expect(settings.themeMode, 'dark');
       expect(settings.searchEngine.id, 'google');
       expect(settings.toolbarPosition, 'bottom');
       expect(settings.javaScriptEnabled, isTrue);
@@ -78,7 +78,7 @@ void main() {
         'accentColor': 'not-a-colour',
         'customSearchEngines': ['not a map'],
       });
-      expect(restored.themeMode, 'system');
+      expect(restored.themeMode, 'dark');
       expect(restored.fontScale, 1.0);
       expect(restored.haptics, isFalse);
       expect(restored.accentColor, 0xFF3B6FF6);

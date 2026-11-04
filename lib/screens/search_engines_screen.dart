@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/search_engine.dart';
 import '../providers/settings_provider.dart';
+import '../theme/tokens.dart';
+import '../widgets/ui/tv_widgets.dart';
 
 /// Search engine picker: defaults plus user defined engines.
 class SearchEnginesScreen extends StatelessWidget {
@@ -91,7 +93,9 @@ class SearchEnginesScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: TvSpace.xl),
         children: [
+          const TvSectionHeader(title: 'Search engine'),
           for (final engine in engines)
             ListTile(
               leading: Icon(settings.settings.searchEngineId == engine.id

@@ -71,6 +71,23 @@ class UrlUtils {
     return text;
   }
 
+  /// Never show an engine placeholder like "about:blank" where a real title or
+  /// domain exists.
+  static String cleanTitle(String title, String url) {
+    final text = title.trim();
+    final lowered = text.toLowerCase();
+    final junk = text.isEmpty ||
+        lowered == 'about:blank' ||
+        lowered == 'about:newtab' ||
+        lowered == 'new tab' ||
+        lowered == 'untitled' ||
+        text == url;
+    if (!junk) return text;
+    final host = hostOf(url).replaceFirst('www.', '');
+    if (host.isNotEmpty) return host;
+    return url.isEmpty ? 'New tab' : url;
+  }
+
   /// "example.com" -> "example" for shortcut naming.
   static String suggestTitle(String url) {
     final host = hostOf(url);
