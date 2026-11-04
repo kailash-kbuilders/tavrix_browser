@@ -15,7 +15,7 @@ import '../models/site_permission.dart';
 class DatabaseService {
   Database? _db;
 
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
 
   Future<void> init() async {
     if (_db != null) return;
@@ -90,6 +90,9 @@ class DatabaseService {
             closedAt INTEGER NOT NULL
           )
         ''');
+        await db.execute(_searchHistoryTableSql);
+        await db.execute(
+            'CREATE INDEX idx_search_history_at ON search_history (searchedAt DESC)');
         await db.execute('''
           CREATE TABLE offline_pages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,11 +104,23 @@ class DatabaseService {
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        // Future schema changes go here, one migration block per version step.
-        // Example: if (oldVersion < 2) { await db.execute('ALTER TABLE ...'); }
+        // One block per version step, so an existing install keeps its data.
+        if (oldVersion < 2) {
+          await db.execute(_searchHistoryTableSql);
+          await db.execute(
+              'CREATE INDEX idx_search_history_at ON search_history (searchedAt DESC)');
+        }
       },
     );
   }
+
+  static const String _searchHistoryTableSql = '''
+    CREATE TABLE search_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      query TEXT NOT NULL,
+      searchedAt INTEGER NOT NULL
+    )
+  ''';
 
   Database get db {
     final database = _db;
@@ -205,6 +220,74 @@ class DatabaseService {
       [limit],
     );
     return rows.map(HistoryEntry.fromMap).toList();
+  }
+
+  // ----------------------------------------------------------- search history
+
+  Future<void> insertSearchQuery(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    // One row per query, most recent wins.
+    await db.delete('search_history',
+        where: 'LOWER(query) = ?', whereArgs: [trimmed.toLowerCase()]);
+    await db.insert('search_history', {
+      'query': trimmed,
+      'searchedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+    await db.rawDelete(
+      'DELETE FROM search_history WHERE id NOT IN '
+      '(SELECT id FROM search_history ORDER BY searchedAt DESC LIMIT 200)',
+    );
+  }
+
+  Future<List<String>> searchHistory({int limit = 20}) async {
+    final rows = await db.query('search_history',
+        orderBy: 'searchedAt DESC', limit: limit);
+    return rows.map((row) => row['query'] as String? ?? '').toList();
+  }
+
+  Future<void> clearSearchHistory() async {
+    await db.delete('search_history');
+  }
+
+  /// Suggestions from data already on the device: recent searches first, then
+  /// bookmarks, then pages that were visited before.
+  Future<List<String>> localSuggestions(String query, {int limit = 5}) async {
+    final needle = query.trim();
+    if (needle.isEmpty) return [];
+    final like = '%$needle%';
+    final results = <String>[];
+    void add(String? value) {
+      final text = (value ?? '').trim();
+      if (text.isEmpty) return;
+      if (results.any((item) => item.toLowerCase() == text.toLowerCase())) {
+        return;
+      }
+      results.add(text);
+    }
+
+    final searches = await db.query('search_history',
+        where: 'query LIKE ?', whereArgs: [like],
+        orderBy: 'searchedAt DESC', limit: limit);
+    for (final row in searches) {
+      add(row['query'] as String?);
+    }
+    if (results.length < limit) {
+      final saved = await db.query('bookmarks',
+          where: 'title LIKE ?', whereArgs: [like], limit: limit);
+      for (final row in saved) {
+        add(row['title'] as String?);
+      }
+    }
+    if (results.length < limit) {
+      final visited = await db.query('history',
+          where: 'title LIKE ?', whereArgs: [like],
+          orderBy: 'visitedAt DESC', limit: limit);
+      for (final row in visited) {
+        add(row['title'] as String?);
+      }
+    }
+    return results.take(limit).toList();
   }
 
   // ---------------------------------------------------------------- downloads

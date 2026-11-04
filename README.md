@@ -40,6 +40,15 @@ true progress, and permissions are requested only when a feature needs them.
 - **Password vault** - Android Keystore backed secure storage, strong password
   generator, per-site logins, form autofill by domain.
 
+## Store identity
+
+`applicationId` is set to **`com.tavrix_browser.kn`** by the build workflow. The
+Gradle `namespace` is deliberately left at the Flutter template value: it
+determines where `MainActivity` lives, and changing it without moving the Kotlin
+package breaks app launch. Release builds are still signed with the debug
+keystore - configure `key.properties` and a release `signingConfig` before a Play
+Store upload.
+
 ## Branding and app icon
 
 The launcher icon is a real Android **adaptive icon**, not a square picture with

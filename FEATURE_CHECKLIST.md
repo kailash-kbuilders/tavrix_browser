@@ -11,7 +11,7 @@ Status legend (from the release QA audit, see RELEASE_QA_REPORT.md):
 | # | PRD module | Status | Notes |
 | --- | --- | --- | --- |
 | 1 | Home and speed dial | Device test needed | Add/edit/delete/reorder shortcuts, top sites, recently closed, recent downloads. Shortcut ordering is menu-driven, not drag. |
-| 2 | Address and search | Verified (logic) / Device test needed (UI) | URL detection, https normalisation and search fallback unit-tested; address bar submit covered by a widget test. Swipe-to-switch respects its setting. |
+| 2 | Address and search | Verified (logic) / Device test needed (UI) | URL detection, https normalisation and search fallback unit-tested; address bar submit covered by a widget test. **Search suggestions** (engine autocomplete merged with local searches/bookmarks/history, 250 ms debounce) and **search history** (new `search_history` table, schema v2 migration) are implemented; suggestion parsing is unit-tested. Swipe-to-switch respects its setting. |
 | 3 | Browser engine | Device test needed | Android System WebView behind `BrowserEngine`; live settings now pushed to open tabs. |
 | 4 | Web navigation | Device test needed | Back/forward/reload/stop/home, error overlay with retry. |
 | 5 | Tab management | Partial | Live tabs, grid/list overview, search, pin, groups, close all, recently closed (capped at 50, tested), session restore. No drag-to-reorder and no duplicate-tab detection. |
@@ -27,14 +27,14 @@ Status legend (from the release QA audit, see RELEASE_QA_REPORT.md):
 | 15 | Website permissions | Partial | Per-host allow/block/ask stored in SQLite (tested) and enforced for camera/microphone/location. The first request from a site is granted automatically after the OS grant - no in-app prompt yet. |
 | 16 | Media playback | Device test needed | HTML5 audio/video, inline playback, full screen, zoom. No picture-in-picture or lock-screen media session. |
 | 17 | Reader mode | Device test needed | Heuristic article extraction, font size, light/sepia/dark, share. Canvas-heavy pages yield "no readable article". |
-| 18 | Translation | Partial | Opens the page through Google Translate's web translator - a real provider, not an in-app overlay. |
+| 18 | Translation | Partial | Manual translate opens the page through Google Translate's web translator (a real provider, not an in-app overlay). With "translate pages automatically" on, Tavrix reads `document.documentElement.lang` after load and offers translation in a snackbar - it never redirects on its own, so there is no loop. |
 | 19 | Find in page | Device test needed | Highlighting via injected JS, match count, next/previous, no-result state. |
 | 20 | Sharing | Device test needed | System share sheet for URL, title and downloaded files. |
 | 21 | Desktop mode | Verified (wiring) / Device test needed | Per-tab desktop user agent with reload, plus a "desktop by default" preference that now actually applies to new tabs. |
 | 22 | PWA support | Engine limit | The system WebView exposes no install prompt. |
 | 23 | Offline reading | Device test needed | Saves page HTML, lists saved pages, opens them from local files. |
 | 24 | Browser customisation | Verified (settings) / Device test needed (visuals) | Theme, accent colour, toolbar position, compact layout, tab layout, font scaling, animations toggle (now wired). |
-| 25 | Settings | Verified | 26 preferences persist (JSON round trip tested). Every switch either works or was removed - `blockPopups` and `notifyWebsite` were removed because the engine cannot honour them. |
+| 25 | Settings | Verified | 26 preferences persist (JSON round trip tested). Every visible switch now has a real effect: suggestions, saved search history and automatic translation were wired in v1.2.0; `blockPopups` and `notifyWebsite` were removed because the engine cannot honour them. |
 | 26 | Backup and restore | Partial | Bookmarks export/import as JSON, settings export. No encrypted password backup. |
 | 27 | Android system integration | Device test needed | Contextual runtime permissions, intent queries, external-scheme allowlist, notification channels, `roundIcon`. |
 | 28 | Accessibility | Partial | Semantic labels on icon buttons, scalable typography, large touch targets. No screen-reader audit performed. |
@@ -51,6 +51,7 @@ Status legend (from the release QA audit, see RELEASE_QA_REPORT.md):
 - Encrypted password export/import.
 - Drag-to-reorder tabs and duplicate-tab detection.
 - Crash reporting and performance profiling.
+- Download location preference (`defaultDownloadFolder` exists in the model but downloads always go to `Android/data/<package>/files/Tavrix Downloads`).
 
 ## Device test matrix to run before release
 

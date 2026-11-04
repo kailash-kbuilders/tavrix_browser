@@ -151,9 +151,11 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (context) => const SearchEnginesScreen())),
           ),
-          switchTile('Search suggestions', 'Show suggestions while typing',
+          switchTile('Search suggestions',
+              'Autocomplete from your history, bookmarks and the search engine',
               app.searchSuggestions, settings.setSearchSuggestions),
-          switchTile('Save search history', 'Remember recent searches',
+          switchTile('Save search history',
+              'Remember queries to suggest them again',
               app.savedSearchHistory, settings.setSavedSearchHistory),
 
           header('Homepage'),
@@ -319,8 +321,8 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           switchTile('Translate pages automatically',
-              'Offers translation for other languages', app.automaticTranslation,
-              settings.setAutomaticTranslation),
+              'Offers translation when a page is in another language',
+              app.automaticTranslation, settings.setAutomaticTranslation),
 
           header('Storage and backup'),
           ListTile(

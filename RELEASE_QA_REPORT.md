@@ -115,3 +115,25 @@ flutter build apk --release --no-shrink   -> success (CI)
 **Not store-ready, but installable and internally consistent.** The code compiles cleanly, the automated suite passes against the real schema, and the APK builds and installs as a signed debug APK with a proper adaptive icon.
 
 Before a Play Store release: configure a real release keystore and application id, run the device test matrix in section 5.1 of FEATURE_CHECKLIST.md on at least one Android 10 and one Android 14 device, and decide on the per-site permission prompt (S3).
+
+## 8. Addendum - v1.2.0
+
+After the audit, three features that had settings but no implementation were added
+(no other feature work):
+
+1. **Search suggestions** - `SuggestionService` fetches the active engine's
+   autocomplete (`suggestTemplate`), merges it with recent searches, bookmarks and
+   history (local first, case-insensitive de-duplication, 8 rows max) and shows it
+   under the address bar with a 250 ms debounce. Covered by
+   `test/suggestion_service_test.dart`.
+2. **Search history** - new `search_history` table, schema version 2 with an
+   `onUpgrade` migration that keeps existing data. One row per query (repeat moves
+   it to the top), capped at 200 rows, used by suggestions and clearable from the
+   Privacy dashboard. Covered by `test/database_service_test.dart`.
+3. **Automatic translation** - after a page loads, Tavrix reads the document
+   language and offers translation in a snackbar when it differs from the target.
+   It never navigates by itself, so no redirect loops.
+
+Also changed: `applicationId` is now `com.tavrix_browser.kn` (namespace left at the
+template value so `MainActivity` keeps resolving). Automated suite is now 38 tests,
+`flutter analyze` clean.

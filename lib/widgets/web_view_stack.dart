@@ -58,6 +58,50 @@ class TabWebView extends StatefulWidget {
 class _TabWebViewState extends State<TabWebView> {
   InAppWebViewController? _controller;
   String? _appliedSettingsSignature;
+  String? _translationOfferedFor;
+
+  /// Automatic translation: read the page language and offer to translate.
+  /// It never navigates on its own, so it cannot start a redirect loop.
+  Future<void> _maybeOfferTranslation(
+    BuildContext context,
+    BrowserProvider browser,
+    SettingsProvider settings,
+  ) async {
+    if (!settings.settings.automaticTranslation) return;
+    if (browser.activeTabId != widget.tab.id) return;
+    final url = widget.tab.url;
+    if (url.isEmpty || url.contains('translate.google.')) return;
+    if (_translationOfferedFor == url) return;
+    final controller = _controller;
+    if (controller == null) return;
+    _translationOfferedFor = url;
+    try {
+      final raw = await controller.evaluateJavascript(
+          source: "document.documentElement.lang || ''");
+      final language = (raw?.toString() ?? '')
+          .replaceAll('"', '')
+          .replaceAll("'", '')
+          .trim()
+          .toLowerCase();
+      if (language.isEmpty) return;
+      final target = settings.settings.translationLanguage;
+      if (language.startsWith(target)) return;
+      if (!context.mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        content: Text('This page looks like ${language.toUpperCase()}'),
+        action: SnackBarAction(
+          label: 'Translate',
+          onPressed: () {
+            final translated = 'https://translate.google.com/translate'
+                '?sl=auto&tl=$target&u=${Uri.encodeComponent(url)}';
+            browser.navigate(widget.tab.id, translated);
+          },
+        ),
+      ));
+    } catch (_) {}
+  }
 
   /// Settings that can be changed while a page is open. Changing them used to
   /// require closing the tab, so switches like JavaScript or cookies looked
@@ -137,6 +181,7 @@ class _TabWebViewState extends State<TabWebView> {
                 source: BrowserEngine.doNotTrackScript);
           } catch (_) {}
         }
+        await _maybeOfferTranslation(context, browser, settings);
       },
       onProgressChanged: (controller, progress) {
         browser.onProgressChanged(tab.id, progress);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -15,6 +16,7 @@ import '../providers/browser_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/browser_engine.dart';
 import '../services/database_service.dart';
+import '../services/suggestion_service.dart';
 import '../services/vault_service.dart';
 import '../utils/url_utils.dart';
 import '../widgets/address_bar.dart';
@@ -45,6 +47,12 @@ class _BrowserScreenState extends State<BrowserScreen>
     with WidgetsBindingObserver {
   final TextEditingController _findController = TextEditingController();
   final VaultService _vault = VaultService();
+  final SuggestionService _suggestions = SuggestionService();
+  final GlobalKey<AddressBarState> _addressBarKey =
+      GlobalKey<AddressBarState>();
+  Timer? _suggestionDebounce;
+  List<String> _suggestionItems = [];
+  bool _addressFocused = false;
   bool _findVisible = false;
   int _findMatches = 0;
   int _findIndex = 0;
@@ -58,6 +66,8 @@ class _BrowserScreenState extends State<BrowserScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _suggestionDebounce?.cancel();
+    _suggestions.close();
     _findController.dispose();
     super.dispose();
   }
@@ -97,9 +107,64 @@ class _BrowserScreenState extends State<BrowserScreen>
     final settings = context.read<SettingsProvider>();
     final tab = browser.activeTab;
     if (tab == null) return;
-    final url = UrlUtils.resolveInput(text, settings.searchEngine);
+    final query = text.trim();
+    if (query.isEmpty) return;
+    final isUrl = UrlUtils.looksLikeUrl(query);
+    if (!isUrl && settings.settings.savedSearchHistory) {
+      // Remembered only when the user asked for it, and never for URLs.
+      context.read<DatabaseService>().insertSearchQuery(query);
+    }
+    final url = UrlUtils.resolveInput(query, settings.searchEngine);
     if (url.isEmpty) return;
+    setState(() => _suggestionItems = []);
     browser.navigate(tab.id, url);
+  }
+
+  void _onAddressQueryChanged(String value) {
+    _suggestionDebounce?.cancel();
+    final settings = context.read<SettingsProvider>();
+    final text = value.trim();
+    if (!settings.settings.searchSuggestions ||
+        text.isEmpty ||
+        UrlUtils.looksLikeUrl(text)) {
+      if (_suggestionItems.isNotEmpty) {
+        setState(() => _suggestionItems = []);
+      }
+      return;
+    }
+    _suggestionDebounce =
+        Timer(const Duration(milliseconds: 250), () => _fetchSuggestions(text));
+  }
+
+  void _onAddressFocusChanged(bool focused) {
+    if (_addressFocused == focused) return;
+    _addressFocused = focused;
+    if (!focused && _suggestionItems.isNotEmpty) {
+      setState(() => _suggestionItems = []);
+    }
+  }
+
+  Future<void> _fetchSuggestions(String query) async {
+    final settings = context.read<SettingsProvider>();
+    if (!settings.settings.searchSuggestions) return;
+    final db = context.read<DatabaseService>();
+    List<String> local = const [];
+    try {
+      local = await db.localSuggestions(query, limit: 4);
+    } catch (_) {}
+    final remote = await _suggestions.remote(
+      settings.searchEngine,
+      query,
+      limit: 6,
+    );
+    final merged = SuggestionService.merge(local, remote);
+    if (!mounted) return;
+    if (!_addressFocused) return;
+    setState(() => _suggestionItems = merged);
+  }
+
+  void _applySuggestion(String suggestion) {
+    _addressBarKey.currentState?.applySuggestion(suggestion);
   }
 
   Future<void> _toggleBookmark() async {
@@ -518,6 +583,9 @@ class _BrowserScreenState extends State<BrowserScreen>
             children: [
               if (toolbarTop) toolbar,
               AddressBar(
+                key: _addressBarKey,
+                onQueryChanged: _onAddressQueryChanged,
+                onFocusChanged: _onAddressFocusChanged,
                 tab: tab,
                 isBookmarked: tab == null ? false : bookmarks.isBookmarked(tab.url),
                 onSubmit: _submitInput,
@@ -544,6 +612,11 @@ class _BrowserScreenState extends State<BrowserScreen>
                       }
                     : () {},
               ),
+              if (_addressFocused && _suggestionItems.isNotEmpty)
+                _SuggestionList(
+                  items: _suggestionItems,
+                  onSelected: _applySuggestion,
+                ),
               if (_findVisible)
                 FindInPageBar(
                   controller: _findController,
@@ -684,6 +757,43 @@ class _ErrorOverlay extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Search suggestions under the address bar. Local matches are shown with a
+/// different icon so it is clear where a row came from.
+class _SuggestionList extends StatelessWidget {
+  const _SuggestionList({required this.items, required this.onSelected});
+
+  final List<String> items;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 260),
+      color: theme.colorScheme.surfaceContainerLow,
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        itemCount: items.length,
+        separatorBuilder: (context, index) =>
+            const Divider(height: 1, indent: 48),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return ListTile(
+            dense: true,
+            leading: Icon(
+              index < 4 ? Icons.history_rounded : Icons.search_rounded,
+              size: 20,
+            ),
+            title: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis),
+            onTap: () => onSelected(item),
+          );
+        },
       ),
     );
   }

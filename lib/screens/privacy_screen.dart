@@ -7,6 +7,7 @@ import '../providers/history_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/browser_engine.dart';
+import '../services/database_service.dart';
 import '../utils/url_utils.dart';
 
 /// Privacy dashboard: connection status, data clearing and tracking controls.
@@ -123,6 +124,18 @@ class PrivacyScreen extends StatelessWidget {
             title: const Text('Clear local storage'),
             subtitle: const Text('localStorage and sessionStorage per open tab'),
             onTap: () => _clearWebStorage(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.manage_search_rounded),
+            title: const Text('Clear search history'),
+            subtitle: const Text('The queries kept for suggestions'),
+            onTap: () async {
+              await context.read<DatabaseService>().clearSearchHistory();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Search history cleared')),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.history_toggle_off_rounded),

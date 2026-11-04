@@ -151,8 +151,10 @@ jobs:
         run: |
           python3 - <<'PY'
           import os, pathlib, re
-          repo = os.environ.get("GITHUB_REPOSITORY", "app")
-          app_id = "com.example." + repo.split("/")[-1]
+          # Store identity. The namespace is deliberately left at the Flutter
+          # template value: it decides where MainActivity lives, and changing
+          # it without moving the Kotlin package breaks app launch.
+          app_id = "com.tavrix_browser.kn"
 
           for name in ("android/app/build.gradle", "android/app/build.gradle.kts"):
               path = pathlib.Path(name)

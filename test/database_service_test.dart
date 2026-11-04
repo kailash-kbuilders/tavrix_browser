@@ -141,6 +141,44 @@ void main() {
     expect(await db.siteDecision('example.com', 'camera'), isNull);
   });
 
+  test('search history keeps one row per query, newest first', () async {
+    await db.insertSearchQuery('flutter');
+    await db.insertSearchQuery('tavrix browser');
+    await db.insertSearchQuery('flutter'); // repeat moves it to the top
+
+    final history = await db.searchHistory();
+    expect(history.length, 2);
+    expect(history.first, 'flutter');
+    expect(history.last, 'tavrix browser');
+
+    final suggestions = await db.localSuggestions('flut');
+    expect(suggestions.first, 'flutter');
+
+    await db.clearSearchHistory();
+    expect(await db.searchHistory(), isEmpty);
+  });
+
+  test('local suggestions combine searches, bookmarks and history', () async {
+    await db.insertSearchQuery('dart language');
+    await db.insertBookmark(const Bookmark(
+      title: 'Dart docs',
+      url: 'https://dart.dev',
+      createdAt: 1,
+    ));
+    await db.insertHistory(const HistoryEntry(
+      title: 'Dartpad',
+      url: 'https://dartpad.dev',
+      domain: 'dartpad.dev',
+      visitedAt: 2,
+    ));
+
+    final suggestions = await db.localSuggestions('dart', limit: 5);
+    expect(suggestions, containsAll(['dart language', 'Dart docs', 'Dartpad']));
+    // Recent search comes first.
+    expect(suggestions.first, 'dart language');
+    expect(await db.localSuggestions('zzzz'), isEmpty);
+  });
+
   test('closed tabs are capped so the table cannot grow forever', () async {
     for (var i = 0; i < 60; i++) {
       await db.insertClosedTab(ClosedTab(

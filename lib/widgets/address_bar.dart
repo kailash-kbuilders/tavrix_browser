@@ -18,6 +18,8 @@ class AddressBar extends StatefulWidget {
     required this.onShare,
     required this.onToggleBookmark,
     required this.isBookmarked,
+    this.onQueryChanged,
+    this.onFocusChanged,
   });
 
   final TabModel? tab;
@@ -31,11 +33,17 @@ class AddressBar extends StatefulWidget {
   final VoidCallback onToggleBookmark;
   final bool isBookmarked;
 
+  /// Fired on every keystroke so the shell can show suggestions.
+  final ValueChanged<String>? onQueryChanged;
+
+  /// Fired when the field gains or loses focus.
+  final ValueChanged<bool>? onFocusChanged;
+
   @override
-  State<AddressBar> createState() => _AddressBarState();
+  State<AddressBar> createState() => AddressBarState();
 }
 
-class _AddressBarState extends State<AddressBar> {
+class AddressBarState extends State<AddressBar> {
   late final TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
   bool _editing = false;
@@ -44,8 +52,10 @@ class _AddressBarState extends State<AddressBar> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: _displayText);
+    _controller.addListener(() => widget.onQueryChanged?.call(_controller.text));
     _focusNode.addListener(() {
       setState(() => _editing = _focusNode.hasFocus);
+      widget.onFocusChanged?.call(_focusNode.hasFocus);
       if (_focusNode.hasFocus) {
         _controller.selection = TextSelection(
           baseOffset: 0,
@@ -80,6 +90,13 @@ class _AddressBarState extends State<AddressBar> {
   void _submit(String value) {
     final text = value.trim();
     if (text.isEmpty) return;
+    _focusNode.unfocus();
+    widget.onSubmit(text);
+  }
+
+  /// Used by the shell when the user taps a suggestion.
+  void applySuggestion(String text) {
+    _controller.text = text;
     _focusNode.unfocus();
     widget.onSubmit(text);
   }
