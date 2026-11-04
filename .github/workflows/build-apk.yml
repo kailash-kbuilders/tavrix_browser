@@ -174,6 +174,53 @@ jobs:
               path.write_text(text)
               print("configured", name, "->", app_id)
 
+          # The launcher activity must live in the namespace package, otherwise
+          # Android cannot find it and the app crashes on launch with
+          # ClassNotFoundException: com.tavrix_browser.kn.MainActivity.
+          moved = 0
+          for root_name in ("kotlin", "java"):
+              source_root = pathlib.Path("android/app/src/main") / root_name
+              if not source_root.exists():
+                  continue
+              target_dir = source_root.joinpath(*app_id.split("."))
+              for source in sorted(source_root.rglob("*.kt")) + sorted(
+                  source_root.rglob("*.java")
+              ):
+                  text = source.read_text()
+                  rewritten = re.sub(
+                      r'^package[ \t]+[A-Za-z0-9_.]+',
+                      'package ' + app_id,
+                      text,
+                      count=1,
+                      flags=re.M,
+                  )
+                  target_dir.mkdir(parents=True, exist_ok=True)
+                  destination = target_dir / source.name
+                  if source.resolve() != destination.resolve():
+                      destination.write_text(rewritten)
+                      source.unlink()
+                      moved += 1
+                  elif rewritten != text:
+                      source.write_text(rewritten)
+                      moved += 1
+                  print("source", destination, "->", app_id)
+          print("source files rewritten:", moved)
+
+          # Fail the build instead of shipping an APK whose launcher activity
+          # does not exist.
+          main_activity = None
+          for root_name in ("kotlin", "java"):
+              candidate = pathlib.Path("android/app/src/main") / root_name
+              candidate = candidate.joinpath(*app_id.split(".")) / "MainActivity.kt"
+              if candidate.exists():
+                  main_activity = candidate
+                  break
+          if main_activity is None:
+              raise SystemExit("MainActivity.kt missing for namespace " + app_id)
+          if ("package " + app_id) not in main_activity.read_text():
+              raise SystemExit("MainActivity package does not match namespace " + app_id)
+          print("launcher activity verified:", main_activity)
+
           manifest = pathlib.Path("android/app/src/main/AndroidManifest.xml")
           if manifest.exists():
               m = manifest.read_text()

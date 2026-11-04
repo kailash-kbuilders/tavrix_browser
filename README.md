@@ -42,10 +42,11 @@ true progress, and permissions are requested only when a feature needs them.
 
 ## Store identity
 
-`applicationId` is set to **`com.tavrix_browser.kn`** by the build workflow. The
-Gradle `namespace` is deliberately left at the Flutter template value: it
-determines where `MainActivity` lives, and changing it without moving the Kotlin
-package breaks app launch. Release builds are still signed with the debug
+`applicationId` and Gradle `namespace` are both set to **`com.tavrix_browser.kn`**
+by the build workflow, and the generated `MainActivity` package is rewritten to
+match, with a build-time assertion that fails the APK if it does not. (v1.2.0
+shipped with a mismatched package and crashed on launch with
+`ClassNotFoundException`; the assertion exists so that cannot happen again.) Release builds are still signed with the debug
 keystore - configure `key.properties` and a release `signingConfig` before a Play
 Store upload.
 
