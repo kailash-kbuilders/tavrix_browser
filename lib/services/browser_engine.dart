@@ -30,17 +30,42 @@ class BrowserEngine {
       allowsInlineMediaPlayback: true,
       supportMultipleWindows: false,
       javaScriptCanOpenWindowsAutomatically: false,
-      supportZoom: true,
-      builtInZoomControls: true,
-      displayZoomControls: false,
+
+      // ---- viewport / zoom (this is what makes a page render like Chrome) ----
+      // `useWideViewPort` honours the page's <meta name="viewport">, which is
+      // what Chrome does. `loadWithOverviewMode` is the setting that used to
+      // shrink whole pages: it zooms out to fit the *widest* content on the
+      // page (a marquee ticker is enough), so the CSS viewport silently became
+      // wider than the device, text got smaller and headings stopped wrapping.
+      // Chrome does not do that for viewport-aware pages, so it is off in
+      // mobile mode and only on for desktop mode, where fitting a 980px layout
+      // onto a phone screen is the whole point.
       useWideViewPort: true,
-      loadWithOverviewMode: true,
+      loadWithOverviewMode: desktopMode,
+      initialScale: 0,
+      textZoom: 100,
+      supportZoom: true,
+      builtInZoomControls: false,
+      displayZoomControls: false,
+      verticalScrollBarEnabled: false,
+      horizontalScrollBarEnabled: false,
+      disallowOverScroll: false,
+
+      // ---- storage / cache: explicit, not left to defaults ----
+      domStorageEnabled: true,
+      databaseEnabled: true,
+      cacheEnabled: true,
+      thirdPartyCookiesEnabled: appSettings.cookiesEnabled,
+      // Chrome allows the compatibility upgrade path for mixed content instead
+      // of blocking every http sub-resource on an https page.
+      mixedContentMode: MixedContentMode.MIXED_CONTENT_COMPATIBILITY_MODE,
+
       geolocationEnabled: true,
       allowFileAccess: true,
       allowContentAccess: true,
-      thirdPartyCookiesEnabled: appSettings.cookiesEnabled,
       userAgent: desktopMode ? TavrixConstants.desktopUserAgent : null,
       transparentBackground: false,
+      hardwareAcceleration: true,
       useHybridComposition: true,
       disableDefaultErrorPage: true,
       isInspectable: false,

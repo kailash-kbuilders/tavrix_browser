@@ -182,11 +182,12 @@ class AddressBarState extends State<AddressBar> {
     final hasUrl = (tab?.url ?? '').isNotEmpty;
 
     return Padding(
+      // No bottom padding: the page must start flush under the address bar.
       padding: const EdgeInsets.fromLTRB(
         TvSpace.lg,
         TvSpace.sm,
         TvSpace.lg,
-        TvSpace.xs,
+        0,
       ),
       child: Column(
         children: [
@@ -295,19 +296,20 @@ class AddressBarState extends State<AddressBar> {
               ),
             ),
           ),
-          SizedBox(
-            height: 2,
-            child: isLoading
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(TvRadius.pill),
-                    child: LinearProgressIndicator(
-                      value: (tab?.progress ?? 0) > 0 ? tab!.progress : null,
-                      minHeight: 2,
-                      backgroundColor: Colors.transparent,
-                    ),
-                  )
-                : null,
-          ),
+          // The progress line only takes space while a page is loading, so the
+          // WebView sits directly under the bar the rest of the time.
+          if (isLoading)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(TvRadius.pill),
+                child: LinearProgressIndicator(
+                  value: (tab?.progress ?? 0) > 0 ? tab!.progress : null,
+                  minHeight: 2,
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
+            ),
         ],
       ),
     );

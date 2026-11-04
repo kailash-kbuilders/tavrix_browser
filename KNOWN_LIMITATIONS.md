@@ -44,14 +44,19 @@ the engine or of this build - none of it is simulated in the UI.
     data is cleared.
 14. **Translation** - opens the current page through Google Translate's web
     translator. There is no in-app translation overlay.
-15. **Desktop mode** - Tavrix sends a desktop user agent and reloads the page.
+15. **Desktop mode** - Tavrix sends a Windows Chrome desktop user agent, enables
+    wide viewport and overview mode for that tab only, and reloads the page.
     Sites that detect the device by other means (screen width, touch support,
     `navigator.maxTouchPoints`) can still serve a mobile layout; no browser can
     force those.
-16. **Tab previews** - captured with `takeScreenshot` when the tab overview
+16. **Viewport height** - Tavrix has a bottom toolbar, Chrome does not, so the
+    page gets a shorter viewport. Sites that size sections with `vh` units compute
+    slightly different heights here. That is a layout consequence of the toolbar
+    position, not a rendering bug.
+17. **Tab previews** - captured with `takeScreenshot` when the tab overview
     opens, capped at 6 tabs per open. Tabs without a controller (blank tabs, or
     a WebView that refused the screenshot) show a tinted fallback card.
-17. **Reader mode extraction** - heuristic (largest text container). Pages built
+18. **Reader mode extraction** - heuristic (largest text container). Pages built
     entirely from canvas or heavy custom layouts may produce little text, in
     which case Tavrix says "no readable article found" instead of showing an
     empty reader.
